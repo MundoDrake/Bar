@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -13,10 +14,32 @@ const NAV_ITEMS = [
 
 export function AppLayout() {
     const { user, signOut } = useAuth()
+    const [sidebarOpen, setSidebarOpen] = useState(false)
+
+    const closeSidebar = () => setSidebarOpen(false)
 
     return (
         <div className="app-layout">
-            <aside className="sidebar">
+            {/* Mobile Header */}
+            <header className="mobile-header">
+                <button className="menu-toggle" onClick={() => setSidebarOpen(true)}>
+                    ☰
+                </button>
+                <div className="mobile-logo">
+                    <span>🍺</span>
+                    <span>Bar Stock</span>
+                </div>
+                <div style={{ width: 40 }}></div>
+            </header>
+
+            {/* Sidebar Overlay */}
+            <div
+                className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
+                onClick={closeSidebar}
+            />
+
+            {/* Sidebar */}
+            <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
                     <div className="sidebar-logo">
                         <span className="sidebar-logo-icon">🍺</span>
@@ -30,6 +53,7 @@ export function AppLayout() {
                             key={item.to}
                             to={item.to}
                             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                            onClick={closeSidebar}
                         >
                             <span className="nav-item-icon">{item.icon}</span>
                             <span>{item.label}</span>
@@ -38,7 +62,7 @@ export function AppLayout() {
                 </nav>
 
                 <div className="sidebar-footer">
-                    <div className="user-info" style={{ marginBottom: 'var(--spacing-3)', fontSize: 'var(--font-size-sm)', color: 'var(--color-neutral-400)' }}>
+                    <div className="user-email">
                         {user?.email}
                     </div>
                     <button className="btn btn-secondary w-full" onClick={signOut}>
