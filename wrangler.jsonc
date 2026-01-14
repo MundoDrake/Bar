@@ -1,0 +1,7 @@
+{
+    "name": "bar-stock-manager",
+    "compatibility_date": "2024-01-14",
+    "assets": {
+        "directory": "./dist"
+    }
+}
