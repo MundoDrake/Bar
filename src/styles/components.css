@@ -516,6 +516,22 @@
     color: var(--color-neutral-500);
     text-transform: uppercase;
     letter-spacing: var(--letter-spacing-wide);
+    position: sticky;
+    /* Mantém cabeçalho visível */
+    top: 0;
+    background: var(--color-neutral-900);
+    z-index: 10;
+}
+
+/* ... (mantendo o resto) ... */
+
+/* Desktop table / Mobile cards toggle */
+.stock-desktop {
+    display: block;
+}
+
+.stock-mobile {
+    display: none;
 }
 
 .stock-table tbody tr:hover {
@@ -533,6 +549,75 @@
 
 .low-stock-row {
     background: rgba(245, 158, 11, 0.03);
+}
+
+/* Desktop table / Mobile cards toggle */
+.stock-desktop {
+    display: block !important;
+}
+
+.stock-mobile {
+    display: none !important;
+}
+
+/* Stock Cards (mobile) */
+.stock-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.stock-card {
+    background: var(--color-neutral-900);
+    border: var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-3);
+}
+
+.stock-card.low-stock {
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.stock-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-1);
+}
+
+.stock-card-name {
+    font-weight: var(--font-weight-medium);
+    color: var(--color-neutral-100);
+    font-size: var(--font-size-sm);
+}
+
+.stock-card-category {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-500);
+    margin-bottom: var(--spacing-2);
+}
+
+.stock-card-qty {
+    display: flex;
+    gap: var(--spacing-4);
+}
+
+.stock-card-qty-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stock-card-label {
+    font-size: 10px;
+    color: var(--color-neutral-500);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+.stock-card-value {
+    font-size: var(--font-size-sm);
+    color: var(--color-neutral-200);
 }
 
 .stock-row-skeleton {
@@ -1068,6 +1153,95 @@
 }
 
 .about-description {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-500);
+}
+
+/* ===========================================
+   STOCK CHECK FORM
+   =========================================== */
+.stock-check-list {
+    display: flex;
+    flex-direction: column;
+    border: var(--border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.stock-check-header {
+    display: grid;
+    grid-template-columns: 1fr 80px 100px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--color-neutral-950);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-neutral-500);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+    position: sticky;
+    top: 0;
+}
+
+.stock-check-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 100px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-top: var(--border-subtle);
+    align-items: center;
+}
+
+.stock-check-row.has-error {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.stock-check-col-product {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stock-check-product-name {
+    font-weight: var(--font-weight-medium);
+    color: var(--color-neutral-100);
+    font-size: var(--font-size-sm);
+}
+
+.stock-check-product-unit {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-500);
+}
+
+.stock-check-col-registered {
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-neutral-300);
+}
+
+.stock-check-col-counted {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stock-check-input {
+    width: 100%;
+    text-align: center;
+    padding: var(--spacing-1) var(--spacing-2);
+    font-family: var(--font-mono);
+}
+
+.stock-check-error {
+    font-size: 10px;
+    color: var(--color-error-500);
+    text-align: center;
+}
+
+.stock-check-registered-mobile {
+    display: none;
     font-size: var(--font-size-xs);
     color: var(--color-neutral-500);
 }

@@ -11,6 +11,15 @@
         z-index: var(--z-modal);
     }
 
+    /* Toggle Stock Views */
+    .stock-desktop {
+        display: none !important;
+    }
+
+    .stock-mobile {
+        display: flex !important;
+    }
+
     .sidebar.open {
         transform: translateX(0);
     }
@@ -183,6 +192,47 @@
     .btn-sm {
         min-height: 32px;
         padding: var(--spacing-2);
+    }
+
+    /* Stock Check mobile */
+    .stock-check-header {
+        display: none;
+    }
+
+    .stock-check-row {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-2);
+        padding: var(--spacing-3);
+    }
+
+    .stock-check-col-product {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .stock-check-col-registered {
+        display: none;
+    }
+
+    .stock-check-col-counted {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--spacing-2);
+    }
+
+    .stock-check-col-counted::before {
+        content: 'Contagem:';
+        font-size: var(--font-size-xs);
+        color: var(--color-neutral-500);
+    }
+
+    .stock-check-input {
+        width: 80px;
+    }
+
+    .stock-check-registered-mobile {
+        display: flex;
     }
 }
 

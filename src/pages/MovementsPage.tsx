@@ -1,15 +1,13 @@
 import { useState } from 'react'
 import { useMovements, useStock } from '../hooks/useStock'
-import { useProducts } from '../hooks/useProducts'
-import { StockMovementForm } from '../components/stock/StockMovementForm'
+import { StockCheckForm } from '../components/stock/StockCheckForm'
 import { Modal } from '../components/ui/Modal'
 
 export function MovementsPage() {
     const { movements, loading, error, refreshMovements } = useMovements()
-    const { registerMovement } = useStock()
-    const { products } = useProducts()
+    const { stockItems, registerMovement, refreshStock } = useStock()
 
-    const [showLossModal, setShowLossModal] = useState(false)
+    const [showCheckModal, setShowCheckModal] = useState(false)
 
     const getTypeLabel = (type: string) => {
         const labels: Record<string, string> = {
@@ -41,13 +39,29 @@ export function MovementsPage() {
         })
     }
 
-    const handleLoss = async (data: Parameters<typeof registerMovement>[0]) => {
-        const result = await registerMovement({ ...data, type: 'perda' })
-        if (!result.error) {
-            setShowLossModal(false)
+    const handleStockCheck = async (movements: { productId: string; quantity: number }[]) => {
+        try {
+            // Registrar cada saída como movimentação
+            for (const movement of movements) {
+                const result = await registerMovement({
+                    product_id: movement.productId,
+                    quantity: movement.quantity,
+                    type: 'saida',
+                    reason: 'Conferência de estoque',
+                })
+
+                if (result.error) {
+                    return { error: result.error }
+                }
+            }
+
+            setShowCheckModal(false)
             refreshMovements()
+            refreshStock()
+            return {}
+        } catch {
+            return { error: 'Erro ao registrar movimentações' }
         }
-        return result
     }
 
     if (loading) {
@@ -76,10 +90,11 @@ export function MovementsPage() {
                     <p className="page-subtitle">Histórico de entradas e saídas</p>
                 </div>
                 <button
-                    className="btn btn-secondary"
-                    onClick={() => setShowLossModal(true)}
+                    className="btn btn-primary"
+                    onClick={() => setShowCheckModal(true)}
+                    disabled={stockItems.length === 0}
                 >
-                    Registrar Movimentação
+                    📋 Registrar Movimentação
                 </button>
             </div>
 
@@ -121,18 +136,17 @@ export function MovementsPage() {
                 </div>
             )}
 
-            {/* Loss Modal */}
+            {/* Stock Check Modal */}
             <Modal
-                isOpen={showLossModal}
-                onClose={() => setShowLossModal(false)}
-                title="Registrar Perda"
-                size="md"
+                isOpen={showCheckModal}
+                onClose={() => setShowCheckModal(false)}
+                title="Conferência de Estoque"
+                size="lg"
             >
-                <StockMovementForm
-                    products={products}
-                    type="saida"
-                    onSubmit={handleLoss}
-                    onCancel={() => setShowLossModal(false)}
+                <StockCheckForm
+                    products={stockItems}
+                    onSubmit={handleStockCheck}
+                    onCancel={() => setShowCheckModal(false)}
                 />
             </Modal>
         </div>
