@@ -1,5 +1,5 @@
 /* =============================================
-   MOBILE RESPONSIVENESS
+   MOBILE RESPONSIVENESS - Skill Compliant
    ============================================= */
 
 /* Mobile Sidebar */
@@ -19,7 +19,7 @@
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         z-index: calc(var(--z-modal) - 1);
     }
 
@@ -29,7 +29,7 @@
 
     .main-content {
         margin-left: 0;
-        padding-top: var(--spacing-16);
+        padding-top: 48px;
     }
 
     .mobile-header {
@@ -38,20 +38,20 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 56px;
+        height: 48px;
         background: var(--color-neutral-950);
-        border-bottom: 1px solid var(--color-neutral-800);
+        border-bottom: var(--border-default);
         align-items: center;
         justify-content: space-between;
-        padding: 0 var(--spacing-4);
+        padding: 0 var(--spacing-3);
         z-index: var(--z-sticky);
     }
 
     .menu-toggle {
         background: none;
         border: none;
-        color: var(--color-neutral-100);
-        font-size: 1.5rem;
+        color: var(--color-neutral-200);
+        font-size: var(--font-size-lg);
         padding: var(--spacing-2);
         cursor: pointer;
     }
@@ -60,13 +60,14 @@
         display: flex;
         align-items: center;
         gap: var(--spacing-2);
-        font-weight: var(--font-weight-bold);
+        font-weight: var(--font-weight-semibold);
+        font-size: var(--font-size-sm);
     }
 
     /* Page adjustments */
     .page-container {
         padding: var(--spacing-4);
-        padding-top: calc(56px + var(--spacing-4));
+        padding-top: calc(48px + var(--spacing-4));
     }
 
     .page-header {
@@ -76,7 +77,7 @@
     }
 
     .page-title {
-        font-size: var(--font-size-2xl);
+        font-size: var(--font-size-xl);
     }
 
     .header-actions {
@@ -91,20 +92,23 @@
     /* Dashboard grid */
     .dashboard-grid {
         grid-template-columns: 1fr;
+        gap: var(--spacing-2);
     }
 
     .stat-card {
-        padding: var(--spacing-4);
+        padding: var(--spacing-3);
     }
 
     /* Product grid */
     .product-grid {
         grid-template-columns: 1fr;
+        gap: var(--spacing-2);
     }
 
     /* Reports grid */
     .reports-grid {
         grid-template-columns: 1fr;
+        gap: var(--spacing-3);
     }
 
     /* Modal fullscreen on mobile */
@@ -134,11 +138,11 @@
 
     /* Chat container */
     .ai-page {
-        height: calc(100vh - 56px - 2rem);
+        height: calc(100vh - 48px - var(--spacing-4));
     }
 
     .chat-container {
-        min-height: 300px;
+        min-height: 280px;
     }
 
     .quick-actions {
@@ -154,7 +158,7 @@
     .settings-option {
         flex-direction: column;
         align-items: flex-start;
-        gap: var(--spacing-3);
+        gap: var(--spacing-2);
     }
 
     .settings-select {
@@ -164,27 +168,21 @@
     /* Stock table scroll */
     .stock-table-container {
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
     }
 
     .stock-table {
-        min-width: 500px;
+        min-width: 480px;
     }
 
     /* Touch-friendly buttons */
     .btn {
-        min-height: 44px;
-        padding: var(--spacing-3) var(--spacing-4);
+        min-height: 40px;
+        padding: var(--spacing-3);
     }
 
     .btn-sm {
-        min-height: 36px;
-        padding: var(--spacing-2) var(--spacing-3);
-    }
-
-    /* Badge adjustments */
-    .badge {
-        padding: var(--spacing-1) var(--spacing-2);
+        min-height: 32px;
+        padding: var(--spacing-2);
     }
 }
 
@@ -192,25 +190,25 @@
 @media (max-width: 375px) {
     .page-container {
         padding: var(--spacing-3);
-        padding-top: calc(56px + var(--spacing-3));
+        padding-top: calc(48px + var(--spacing-3));
     }
 
     .page-title {
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-lg);
     }
 
     .stat-card {
-        gap: var(--spacing-3);
+        gap: var(--spacing-2);
     }
 
     .stat-icon {
-        width: 40px;
-        height: 40px;
-        font-size: var(--font-size-xl);
+        width: 36px;
+        height: 36px;
+        font-size: var(--font-size-lg);
     }
 
     .stat-value {
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-lg);
     }
 }
 
@@ -218,7 +216,7 @@
 @supports (padding: env(safe-area-inset-top)) {
     .mobile-header {
         padding-top: env(safe-area-inset-top);
-        height: calc(56px + env(safe-area-inset-top));
+        height: calc(48px + env(safe-area-inset-top));
     }
 
     .page-container {
@@ -226,7 +224,7 @@
     }
 
     .chat-input-form {
-        padding-bottom: calc(var(--spacing-4) + env(safe-area-inset-bottom));
+        padding-bottom: calc(var(--spacing-3) + env(safe-area-inset-bottom));
     }
 }
 

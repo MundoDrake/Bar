@@ -79,7 +79,7 @@ export function MovementsPage() {
                     className="btn btn-secondary"
                     onClick={() => setShowLossModal(true)}
                 >
-                    ⚠️ Registrar Perda
+                    Registrar Movimentação
                 </button>
             </div>
 

@@ -2,6 +2,15 @@ import type { ProductWithStock, StockMovement } from '../types/database'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
+// Available Gemini models
+export const GEMINI_MODELS = [
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Mais rápido e eficiente' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Rápido e econômico' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Mais capaz e preciso' },
+] as const
+
+export type GeminiModelId = typeof GEMINI_MODELS[number]['id']
+
 interface GeminiMessage {
     role: 'user' | 'model'
     parts: { text: string }[]
@@ -40,7 +49,8 @@ Responda sempre em português brasileiro.`
 export async function sendMessageToGemini(
     userMessage: string,
     context: ChatContext,
-    history: GeminiMessage[] = []
+    history: GeminiMessage[] = [],
+    modelId: GeminiModelId = 'gemini-2.0-flash'
 ): Promise<string> {
     if (!GEMINI_API_KEY) {
         return 'IA não configurada. Adicione VITE_GEMINI_API_KEY no arquivo .env'
@@ -66,7 +76,7 @@ export async function sendMessageToGemini(
 
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: {
@@ -76,7 +86,7 @@ export async function sendMessageToGemini(
                     contents,
                     generationConfig: {
                         temperature: 0.7,
-                        maxOutputTokens: 1024,
+                        maxOutputTokens: 2048,
                     },
                 }),
             }
@@ -104,7 +114,8 @@ export async function sendMessageToGemini(
 
 // Generate stock replenishment suggestions
 export async function generateReplenishmentSuggestions(
-    context: ChatContext
+    context: ChatContext,
+    modelId: GeminiModelId = 'gemini-2.0-flash'
 ): Promise<string> {
     const prompt = `Analise o estoque atual e as movimentações recentes. 
 Sugira quais produtos devem ser repostos e em que quantidade, considerando:
@@ -114,12 +125,13 @@ Sugira quais produtos devem ser repostos e em que quantidade, considerando:
 
 Formate a resposta como uma lista clara com quantidades sugeridas.`
 
-    return sendMessageToGemini(prompt, context)
+    return sendMessageToGemini(prompt, context, [], modelId)
 }
 
 // Generate demand prediction
 export async function generateDemandPrediction(
-    context: ChatContext
+    context: ChatContext,
+    modelId: GeminiModelId = 'gemini-2.0-flash'
 ): Promise<string> {
     const prompt = `Baseado no histórico de movimentações, faça uma análise preditiva:
 1. Quais produtos têm maior consumo?
@@ -128,5 +140,5 @@ export async function generateDemandPrediction(
 
 Seja conciso e prático nas sugestões.`
 
-    return sendMessageToGemini(prompt, context)
+    return sendMessageToGemini(prompt, context, [], modelId)
 }

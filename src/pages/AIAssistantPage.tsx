@@ -3,7 +3,9 @@ import { useStock, useMovements } from '../hooks/useStock'
 import {
     sendMessageToGemini,
     generateReplenishmentSuggestions,
-    generateDemandPrediction
+    generateDemandPrediction,
+    GEMINI_MODELS,
+    type GeminiModelId
 } from '../services/aiService'
 
 interface Message {
@@ -11,6 +13,7 @@ interface Message {
     role: 'user' | 'assistant'
     content: string
     timestamp: Date
+    model?: string
 }
 
 export function AIAssistantPage() {
@@ -18,12 +21,13 @@ export function AIAssistantPage() {
         {
             id: '1',
             role: 'assistant',
-            content: 'Olá! 👋 Sou o assistente inteligente do Bar Stock Manager. Posso ajudar com perguntas sobre seu estoque, sugestões de reposição e análises. Como posso ajudar?',
+            content: 'Olá! Como posso ajudar você hoje?',
             timestamp: new Date(),
         },
     ])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
+    const [selectedModel, setSelectedModel] = useState<GeminiModelId>('gemini-2.0-flash')
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     const { stockItems } = useStock()
@@ -36,6 +40,10 @@ export function AIAssistantPage() {
     useEffect(() => {
         scrollToBottom()
     }, [messages])
+
+    const getModelName = (modelId: string) => {
+        return GEMINI_MODELS.find(m => m.id === modelId)?.name || modelId
+    }
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -59,7 +67,8 @@ export function AIAssistantPage() {
                 messages.slice(1).map(m => ({
                     role: m.role === 'user' ? 'user' : 'model',
                     parts: [{ text: m.content }],
-                }))
+                })),
+                selectedModel
             )
 
             const assistantMessage: Message = {
@@ -67,6 +76,7 @@ export function AIAssistantPage() {
                 role: 'assistant',
                 content: response,
                 timestamp: new Date(),
+                model: selectedModel,
             }
 
             setMessages(prev => [...prev, assistantMessage])
@@ -100,14 +110,15 @@ export function AIAssistantPage() {
 
         try {
             const response = type === 'replenishment'
-                ? await generateReplenishmentSuggestions({ products: stockItems, movements })
-                : await generateDemandPrediction({ products: stockItems, movements })
+                ? await generateReplenishmentSuggestions({ products: stockItems, movements }, selectedModel)
+                : await generateDemandPrediction({ products: stockItems, movements }, selectedModel)
 
             setMessages(prev => [...prev, {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response,
                 timestamp: new Date(),
+                model: selectedModel,
             }])
         } catch {
             setMessages(prev => [...prev, {
@@ -127,6 +138,22 @@ export function AIAssistantPage() {
                 <div>
                     <h1 className="page-title">🤖 Assistente IA</h1>
                     <p className="page-subtitle">Pergunte sobre seu estoque</p>
+                </div>
+                <div className="model-selector">
+                    <label htmlFor="model-select" className="model-label">Modelo:</label>
+                    <select
+                        id="model-select"
+                        className="form-select model-select"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value as GeminiModelId)}
+                        disabled={loading}
+                    >
+                        {GEMINI_MODELS.map((model) => (
+                            <option key={model.id} value={model.id}>
+                                {model.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -158,8 +185,15 @@ export function AIAssistantPage() {
                                 <div className="message-content">
                                     {message.content}
                                 </div>
-                                <div className="message-time">
-                                    {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                <div className="message-meta">
+                                    <span className="message-time">
+                                        {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    {message.model && (
+                                        <span className="message-model">
+                                            {getModelName(message.model)}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         ))}
