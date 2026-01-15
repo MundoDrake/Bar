@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../hooks/usePreferences'
 import { useAuth } from '../contexts/AuthContext'
 import { addMemberToTeam, findUserByCustomId } from '../services/teamService'
 import { useTeams } from '../hooks/useTeams'
-import { ROUTES } from '../constants/routes'
+
 
 export function SettingsPage() {
     const { preferences, loading, error, updatePreferences } = usePreferences()
     const { customId, user } = useAuth()
     const { teams } = useTeams()
-    const navigate = useNavigate()
+
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
     const [memberIdToAdd, setMemberIdToAdd] = useState('')

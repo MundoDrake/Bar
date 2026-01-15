@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Team, TeamMember, UserProfile } from '../types/database';
+import { Team, TeamMember } from '../types/database';
 import { useAuth } from '../contexts/AuthContext';
 
 // Extended member type with display name from user_profiles
