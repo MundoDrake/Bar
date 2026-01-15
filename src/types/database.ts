@@ -53,6 +53,33 @@ export interface UserPreferences {
     updated_at: string
 }
 
+// Team and membership types for collaboration
+export interface Team {
+    id: string
+    name: string
+    owner_user_id: string // custom ID of owner
+    created_at: string
+    updated_at: string
+}
+
+export interface TeamMember {
+    id: string
+    team_id: string
+    user_id: string // auth user id of member
+    role: 'owner' | 'member'
+    allowed_routes: string[] | null // null = all access, array = specific routes
+    created_at: string
+}
+
+export interface UserProfile {
+    id: string
+    user_id: string
+    custom_id: string
+    display_name: string | null
+    created_at: string
+    updated_at: string
+}
+
 // Extended types with relations
 export interface ProductWithStock extends Product {
     stock: Stock | null

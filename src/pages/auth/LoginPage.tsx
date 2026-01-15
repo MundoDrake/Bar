@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { ROUTES } from '../../constants/routes'
 
 export function LoginPage() {
     const [email, setEmail] = useState('')
@@ -24,7 +25,7 @@ export function LoginPage() {
                 return
             }
 
-            navigate('/dashboard')
+            navigate(ROUTES.WELCOME)
         } catch {
             setError('Ocorreu um erro inesperado. Tente novamente.')
         } finally {
@@ -90,7 +91,7 @@ export function LoginPage() {
                     </div>
 
                     <div className="text-right">
-                        <Link to="/forgot-password">Esqueceu a senha?</Link>
+                        <Link to={ROUTES.FORGOT_PASSWORD}>Esqueceu a senha?</Link>
                     </div>
 
                     <button
@@ -103,7 +104,7 @@ export function LoginPage() {
                 </form>
 
                 <p className="auth-footer">
-                    Não tem conta? <Link to="/signup">Criar conta</Link>
+                    Não tem conta? <Link to={ROUTES.SIGNUP}>Criar conta</Link>
                 </p>
             </div>
         </div>

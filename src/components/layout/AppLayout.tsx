@@ -1,22 +1,47 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTeams } from '../../hooks/useTeams'
+import { ROUTES } from '../../constants/routes'
 
+// Define nav items with route keys for permission checking
 const NAV_ITEMS = [
-    { to: '/dashboard', icon: '📊', label: 'Dashboard' },
-    { to: '/products', icon: '📦', label: 'Produtos' },
-    { to: '/stock', icon: '🏷️', label: 'Estoque' },
-    { to: '/movements', icon: '🔄', label: 'Movimentações' },
-    { to: '/reports', icon: '📋', label: 'Relatórios' },
-    { to: '/ai', icon: '🤖', label: 'Assistente IA' },
-    { to: '/settings', icon: '⚙️', label: 'Configurações' },
+    { to: ROUTES.DASHBOARD, icon: '📊', label: 'Dashboard', routeKey: 'dashboard' },
+    { to: ROUTES.PRODUCTS, icon: '📦', label: 'Produtos', routeKey: 'products' },
+    { to: ROUTES.STOCK, icon: '🏷️', label: 'Estoque', routeKey: 'stock' },
+    { to: ROUTES.MOVEMENTS, icon: '🔄', label: 'Movimentações', routeKey: 'movements' },
+    { to: ROUTES.REPORTS, icon: '📋', label: 'Relatórios', routeKey: 'reports' },
+    { to: ROUTES.TEAMS, icon: '👥', label: 'Time', routeKey: 'teams', ownerOnly: true },
+    { to: ROUTES.AI_ASSISTANT, icon: '🤖', label: 'Assistente IA', routeKey: 'ai' },
+    { to: ROUTES.SETTINGS, icon: '⚙️', label: 'Configurações', routeKey: 'settings', alwaysShow: true },
 ]
 
 export function AppLayout() {
     const { user, signOut } = useAuth()
+    const { isOwner, currentMember } = useTeams()
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
     const closeSidebar = () => setSidebarOpen(false)
+
+    // Filter nav items based on user permissions
+    const visibleNavItems = useMemo(() => {
+        return NAV_ITEMS.filter(item => {
+            // Always show settings
+            if (item.alwaysShow) return true
+
+            // Owner sees everything
+            if (isOwner) return true
+
+            // Owner-only items hidden for members
+            if (item.ownerOnly && !isOwner) return false
+
+            // If no restrictions (null), show all
+            if (!currentMember || currentMember.allowed_routes === null) return true
+
+            // Check if route is in allowed list
+            return currentMember.allowed_routes?.includes(item.routeKey) ?? false
+        })
+    }, [isOwner, currentMember])
 
     return (
         <div className="app-layout">
@@ -48,7 +73,7 @@ export function AppLayout() {
                 </div>
 
                 <nav className="sidebar-nav">
-                    {NAV_ITEMS.map((item) => (
+                    {visibleNavItems.map((item) => (
                         <NavLink
                             key={item.to}
                             to={item.to}

@@ -36,7 +36,7 @@ export function useStock(): UseStockReturn {
           *,
           stock (*)
         `)
-                .eq('user_id', user.id)
+                // .eq('user_id', user.id) -- Removed to allow RLS to handle team access
                 .order('name')
 
             if (fetchError) throw fetchError
@@ -123,12 +123,9 @@ export function useMovements(productId?: string): UseMovementsReturn {
 
             if (fetchError) throw fetchError
 
-            // Filter by user_id (RLS should handle this, but double-check)
-            const filteredData = (data || []).filter(
-                (m) => (m.product as unknown as { user_id: string }).user_id === user.id
-            )
-
-            setMovements(filteredData)
+            // Removed manual filtering to allow RLS to handle team access
+            // const filteredData = (data || []).filter(...) 
+            setMovements(data || [])
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao carregar movimentações'
             setError(message)

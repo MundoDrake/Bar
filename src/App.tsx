@@ -10,6 +10,7 @@ import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 
 // Pages - App
+import { WelcomePage } from './pages/WelcomePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { StockPage } from './pages/StockPage'
@@ -17,6 +18,10 @@ import { MovementsPage } from './pages/MovementsPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { AIAssistantPage } from './pages/AIAssistantPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { TeamsPage } from './pages/TeamsPage'
+import { RootRedirect } from './components/RootRedirect'
+import { WelcomeGuard } from './components/WelcomeGuard'
+import { ROUTES } from './constants/routes'
 
 function App() {
     return (
@@ -24,22 +29,24 @@ function App() {
             <AuthProvider>
                 <Routes>
                     {/* Rotas Públicas */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/signup" element={<SignUpPage />} />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+                    <Route path={ROUTES.SIGNUP} element={<SignUpPage />} />
+                    <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
+                    <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
 
                     {/* Rotas Privadas */}
                     <Route element={<PrivateRoute />}>
+                        <Route path={ROUTES.WELCOME} element={<WelcomeGuard><WelcomePage /></WelcomeGuard>} />
                         <Route element={<AppLayout />}>
-                            <Route path="/dashboard" element={<DashboardPage />} />
-                            <Route path="/products" element={<ProductsPage />} />
-                            <Route path="/stock" element={<StockPage />} />
-                            <Route path="/movements" element={<MovementsPage />} />
-                            <Route path="/reports" element={<ReportsPage />} />
-                            <Route path="/ai" element={<AIAssistantPage />} />
-                            <Route path="/settings" element={<SettingsPage />} />
-                            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                            <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+                            <Route path={ROUTES.PRODUCTS} element={<ProductsPage />} />
+                            <Route path={ROUTES.STOCK} element={<StockPage />} />
+                            <Route path={ROUTES.MOVEMENTS} element={<MovementsPage />} />
+                            <Route path={ROUTES.REPORTS} element={<ReportsPage />} />
+                            <Route path={ROUTES.TEAMS} element={<TeamsPage />} />
+                            <Route path={ROUTES.AI_ASSISTANT} element={<AIAssistantPage />} />
+                            <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+                            <Route path={ROUTES.ROOT} element={<RootRedirect />} />
                         </Route>
                     </Route>
 

@@ -7,6 +7,129 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =============================================
+-- USER PROFILES TABLE (custom IDs)
+-- Stores a unique custom identifier per user for team features
+-- =============================================
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    custom_id VARCHAR(12) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS on user_profiles
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own profile
+DROP POLICY IF EXISTS "Users can view own profile" ON user_profiles;
+CREATE POLICY "Users can view own profile" ON user_profiles
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert their own profile
+DROP POLICY IF EXISTS "Users can insert own profile" ON user_profiles;
+CREATE POLICY "Users can insert own profile" ON user_profiles
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
+CREATE POLICY "Users can update own profile" ON user_profiles
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Users can view other profiles (for team invites by custom_id)
+DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
+CREATE POLICY "Users can view all profiles" ON user_profiles
+    FOR SELECT USING (true);
+
+-- =============================================
+-- TEAMS TABLE
+-- Represents a team (group of users) for shared inventory
+-- =============================================
+CREATE TABLE IF NOT EXISTS teams (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    owner_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================
+-- TEAM MEMBERS TABLE
+-- Links users to teams with roles
+-- =============================================
+CREATE TABLE IF NOT EXISTS team_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    role VARCHAR(10) NOT NULL CHECK (role IN ('owner','member')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(team_id, user_id)
+);
+
+-- Now enable RLS and create policies (after both tables exist)
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+
+-- Team owners can view their teams
+DROP POLICY IF EXISTS "Users can view own teams" ON teams;
+CREATE POLICY "Users can view own teams" ON teams
+    FOR SELECT USING (owner_user_id = auth.uid());
+
+-- Team owners can insert teams
+DROP POLICY IF EXISTS "Users can insert own teams" ON teams;
+CREATE POLICY "Users can insert own teams" ON teams
+    FOR INSERT WITH CHECK (owner_user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can update own teams" ON teams;
+CREATE POLICY "Users can update own teams" ON teams
+    FOR UPDATE USING (owner_user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Team members can view teams" ON teams;
+CREATE POLICY "Team members can view teams" ON teams
+    FOR SELECT USING (is_team_member(id));  -- Use function to avoid direct table recursion
+
+
+-- TEAM MEMBERS POLICIES
+DROP POLICY IF EXISTS "Users can view own memberships" ON team_members;
+CREATE POLICY "Users can view own memberships" ON team_members
+    FOR SELECT USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Owners can view team members" ON team_members;
+CREATE POLICY "Owners can view team members" ON team_members
+    FOR SELECT USING (is_team_owner(team_id));  -- Use function to avoid direct table recursion
+
+DROP POLICY IF EXISTS "Users can insert own membership" ON team_members;
+CREATE POLICY "Users can insert own membership" ON team_members
+    FOR INSERT WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Owners can add team members" ON team_members;
+CREATE POLICY "Owners can add team members" ON team_members
+    FOR INSERT WITH CHECK (is_team_owner(team_id));
+
+DROP POLICY IF EXISTS "Users can delete own membership" ON team_members;
+CREATE POLICY "Users can delete own membership" ON team_members
+    FOR DELETE USING (user_id = auth.uid());
+
+-- Trigger to update updated_at on user_profiles, teams
+CREATE OR REPLACE FUNCTION update_team_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_user_profiles_updated_at ON user_profiles;
+CREATE TRIGGER trigger_user_profiles_updated_at
+    BEFORE UPDATE ON user_profiles
+    FOR EACH ROW EXECUTE FUNCTION update_team_updated_at();
+
+DROP TRIGGER IF EXISTS trigger_teams_updated_at ON teams;
+CREATE TRIGGER trigger_teams_updated_at
+    BEFORE UPDATE ON teams
+    FOR EACH ROW EXECUTE FUNCTION update_team_updated_at();
+
+-- =============================================
 -- PRODUCTS TABLE
 -- Stores all products (beverages, ingredients, supplies)
 -- =============================================

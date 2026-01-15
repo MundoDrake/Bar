@@ -4,6 +4,7 @@ import App from './App'
 import './styles/index.css'
 import './styles/components.css'
 import './styles/mobile.css'
+import './styles/custom_animations.css'
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>

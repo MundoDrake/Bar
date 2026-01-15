@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useTeams } from './useTeams'
 import type { ProductWithStock, ProductFormData } from '../types/database'
 
 interface UseProductsReturn {
@@ -18,6 +19,23 @@ export function useProducts(): UseProductsReturn {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const { user } = useAuth()
+    const { teams } = useTeams()
+
+    // Get the team owner's user_id - products should be associated with the team owner
+    // If user is a member, use the owner's ID. If user is the owner, use their own ID.
+    const getTeamOwnerId = useCallback(() => {
+        if (!user || teams.length === 0) return user?.id || null
+
+        // Find a team where the current user is either the owner or a member
+        // Priority: if user owns a team, use their ID. Otherwise, use the owner of the first team they're a member of.
+        const ownedTeam = teams.find(t => t.owner_user_id === user.id)
+        if (ownedTeam) {
+            return user.id
+        }
+
+        // User is a member, use the team owner's ID
+        return teams[0]?.owner_user_id || user.id
+    }, [user, teams])
 
     const fetchProducts = useCallback(async () => {
         if (!user) return
@@ -32,7 +50,7 @@ export function useProducts(): UseProductsReturn {
           *,
           stock (*)
         `)
-                .eq('user_id', user.id)
+                // RLS handles team access filtering
                 .order('name')
 
             if (fetchError) throw fetchError
@@ -54,11 +72,15 @@ export function useProducts(): UseProductsReturn {
     const createProduct = async (data: ProductFormData) => {
         if (!user) return { error: 'Usuário não autenticado' }
 
+        // Use team owner's ID so all team members can see the product
+        const ownerId = getTeamOwnerId()
+        if (!ownerId) return { error: 'Nenhum time encontrado' }
+
         try {
             const { data: newProduct, error: insertError } = await supabase
                 .from('products')
                 .insert({
-                    user_id: user.id,
+                    user_id: ownerId, // Use team owner's ID, not current user's ID
                     name: data.name,
                     category: data.category,
                     unit: data.unit,
