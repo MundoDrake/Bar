@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+// Force rebuild timestamp: 2026-01-15 16:30
 
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../hooks/usePreferences'
