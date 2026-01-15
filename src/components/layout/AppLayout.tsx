@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { useTeams } from '../../hooks/useTeams'
+import { useTeams } from '../../hooks/useTeamsHook'
 import { ROUTES } from '../../constants/routes'
 
 // Define nav items with route keys for permission checking

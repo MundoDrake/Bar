@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { usePreferences } from '../hooks/usePreferences'
 import { useAuth } from '../contexts/AuthContext'
 import { addMemberToTeam, findUserByCustomId } from '../services/teamService'
-import { useTeams } from '../hooks/useTeams'
+import { useTeams } from '../hooks/useTeamsHook'
 
 
 export function SettingsPage() {

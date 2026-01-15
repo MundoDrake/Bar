@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom'
-import { useTeams } from '../hooks/useTeams'
+import { useTeams } from '../hooks/useTeamsHook'
 import { ROUTES } from '../constants/routes'
 
 export function RootRedirect() {

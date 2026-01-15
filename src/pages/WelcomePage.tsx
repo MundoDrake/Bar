@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useState, useEffect } from 'react'
 import { createTeam, joinTeamByOwnerCustomId } from '../services/teamService'
-import { useTeams } from '../hooks/useTeams'
+import { useTeams } from '../hooks/useTeamsHook'
 import { ROUTES } from '../constants/routes'
 
 export function WelcomePage() {

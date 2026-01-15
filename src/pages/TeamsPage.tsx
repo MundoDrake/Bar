@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTeams } from '../hooks/useTeams';
+import { useTeams } from '../hooks/useTeamsHook';
 import { useAuth } from '../contexts/AuthContext';
 import { addMemberToTeam, findUserByCustomId } from '../services/teamService';
 
