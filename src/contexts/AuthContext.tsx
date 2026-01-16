@@ -35,7 +35,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const initSession = async () => {
             // Create a timeout promise to prevent infinite loading
             const timeoutPromise = new Promise<null>((_, reject) => {
-                setTimeout(() => reject(new Error('Session timeout')), 8000)
+                setTimeout(() => reject(new Error('Session timeout')), 15000)
             })
 
             try {

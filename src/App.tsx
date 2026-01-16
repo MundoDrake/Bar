@@ -21,6 +21,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { TeamsPage } from './pages/TeamsPage'
 import { RootRedirect } from './components/RootRedirect'
 import { WelcomeGuard } from './components/WelcomeGuard'
+import { RouteGuard } from './components/RouteGuard'
 import { ROUTES } from './constants/routes'
 
 function App() {
@@ -39,13 +40,13 @@ function App() {
                         <Route path={ROUTES.WELCOME} element={<WelcomeGuard><WelcomePage /></WelcomeGuard>} />
                         <Route element={<AppLayout />}>
                             <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-                            <Route path={ROUTES.PRODUCTS} element={<ProductsPage />} />
-                            <Route path={ROUTES.STOCK} element={<StockPage />} />
-                            <Route path={ROUTES.MOVEMENTS} element={<MovementsPage />} />
-                            <Route path={ROUTES.REPORTS} element={<ReportsPage />} />
-                            <Route path={ROUTES.TEAMS} element={<TeamsPage />} />
-                            <Route path={ROUTES.AI_ASSISTANT} element={<AIAssistantPage />} />
-                            <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+                            <Route path={ROUTES.PRODUCTS} element={<RouteGuard><ProductsPage /></RouteGuard>} />
+                            <Route path={ROUTES.STOCK} element={<RouteGuard><StockPage /></RouteGuard>} />
+                            <Route path={ROUTES.MOVEMENTS} element={<RouteGuard><MovementsPage /></RouteGuard>} />
+                            <Route path={ROUTES.REPORTS} element={<RouteGuard><ReportsPage /></RouteGuard>} />
+                            <Route path={ROUTES.TEAMS} element={<RouteGuard><TeamsPage /></RouteGuard>} />
+                            <Route path={ROUTES.AI_ASSISTANT} element={<RouteGuard><AIAssistantPage /></RouteGuard>} />
+                            <Route path={ROUTES.SETTINGS} element={<RouteGuard><SettingsPage /></RouteGuard>} />
                             <Route path={ROUTES.ROOT} element={<RootRedirect />} />
                         </Route>
                     </Route>

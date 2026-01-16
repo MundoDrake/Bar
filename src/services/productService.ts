@@ -4,14 +4,12 @@ import type { ProductWithStock, ProductFormData } from '../types/database';
 
 export const productServices = {
     /**
-     * Get all products with their stock levels for the current user's team.
-     * Since Supabase schema uses user_id (not team_id), we get products from all team members.
+     * Get the user's team_id (helper function)
      */
-    getAll: async (): Promise<ProductWithStock[]> => {
+    getUserTeamId: async (): Promise<string | null> => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+        if (!user) return null;
 
-        // Get all team members' user IDs for the user's team
         const { data: membership } = await supabase
             .from('team_members')
             .select('team_id')
@@ -19,34 +17,30 @@ export const productServices = {
             .limit(1)
             .single();
 
-        if (!membership) {
-            // User has no team - just return their own products
-            const { data, error } = await supabase
-                .from('products')
-                .select(`*, stock (*)`)
-                .eq('user_id', user.id)
-                .order('name');
+        return membership?.team_id || null;
+    },
 
-            if (error) throw new Error(error.message);
-            return (data || []).map(p => ({
-                ...p,
-                stock: Array.isArray(p.stock) ? p.stock[0] || null : p.stock
-            }));
+    /**
+     * Get all products with their stock levels for the current user's team.
+     * Uses team_id for proper sharing between all team members.
+     */
+    getAll: async (): Promise<ProductWithStock[]> => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        // Get user's team_id
+        const teamId = await productServices.getUserTeamId();
+
+        if (!teamId) {
+            // User has no team - return empty array
+            return [];
         }
 
-        // Get all user IDs in the team
-        const { data: teamMembers } = await supabase
-            .from('team_members')
-            .select('user_id')
-            .eq('team_id', membership.team_id);
-
-        const teamUserIds = teamMembers?.map(m => m.user_id) || [user.id];
-
-        // Get products for all team members
+        // Get all products for the team
         const { data, error } = await supabase
             .from('products')
             .select(`*, stock (*)`)
-            .in('user_id', teamUserIds)
+            .eq('team_id', teamId)
             .order('name');
 
         if (error) {
@@ -67,11 +61,16 @@ export const productServices = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        // Insert product (user_id is the creator, team shares via team_members)
+        // Get user's team_id for sharing
+        const teamId = await productServices.getUserTeamId();
+        if (!teamId) throw new Error('Você precisa estar em um time para criar produtos');
+
+        // Insert product with team_id for sharing
         const { data: product, error: productError } = await supabase
             .from('products')
             .insert({
                 user_id: user.id,
+                team_id: teamId,
                 name: formData.name,
                 category: formData.category,
                 unit: formData.unit,

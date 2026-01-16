@@ -56,10 +56,9 @@ export function WelcomePage() {
 
             if (result.success) {
                 setSuccess('Você entrou no time com sucesso! Redirecionando...')
-                setTimeout(() => {
-                    navigate(ROUTES.DASHBOARD, { replace: true })
-                    window.location.reload()
-                }, 1500)
+                // Refresh team data then redirect
+                await refresh()
+                navigate(ROUTES.DASHBOARD, { replace: true })
             } else {
                 setError(result.error || 'Erro ao entrar no time.')
             }

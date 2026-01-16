@@ -35,7 +35,10 @@ export const useTeams = () => {
             const { data: teamMemberships, error } = await supabase
                 .from('team_members')
                 .select(`
+                    id,
                     role,
+                    allowed_routes,
+                    user_id,
                     team:teams (
                         id,
                         name,
@@ -71,18 +74,53 @@ export const useTeams = () => {
             if (firstMembership && firstMembership.team) {
                 const team = firstMembership.team as unknown as Team;
                 setCurrentMember({
-                    id: '',
+                    id: firstMembership.id,
                     team_id: team.id,
                     user_id: user.id,
                     role: firstMembership.role as 'owner' | 'member',
-                    allowed_routes: null,
+                    allowed_routes: (firstMembership as any).allowed_routes || null,
                     created_at: ''
                 });
-            }
 
-            // Note: For now we're not fetching full member details
-            const membersMap: Record<string, TeamMemberWithProfile[]> = {};
-            setMembers(membersMap);
+                // Fetch all members for teams where user is owner
+                const membersMap: Record<string, TeamMemberWithProfile[]> = {};
+
+                for (const teamRow of teamRows) {
+                    // Only fetch members if user is owner of this team
+                    if (teamRow.owner_user_id === user.id) {
+                        const { data: allMembers } = await supabase
+                            .from('team_members')
+                            .select(`
+                                id,
+                                team_id,
+                                user_id,
+                                role,
+                                allowed_routes,
+                                created_at,
+                                profile:user_profiles!team_members_user_id_fkey (
+                                    custom_id,
+                                    display_name
+                                )
+                            `)
+                            .eq('team_id', teamRow.id);
+
+                        if (allMembers) {
+                            membersMap[teamRow.id] = allMembers.map(m => ({
+                                id: m.id,
+                                team_id: m.team_id,
+                                user_id: m.user_id,
+                                role: m.role as 'owner' | 'member',
+                                allowed_routes: m.allowed_routes || null,
+                                created_at: m.created_at,
+                                custom_id: (m.profile as any)?.custom_id || undefined,
+                                display_name: (m.profile as any)?.display_name || undefined
+                            }));
+                        }
+                    }
+                }
+
+                setMembers(membersMap);
+            }
 
         } catch (err) {
             console.error('[useTeams] Error fetching teams:', err);

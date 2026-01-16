@@ -11,7 +11,8 @@ export const generateCustomId = (): string => {
 
 /** Create a new team and add the owner as a member */
 export const createTeam = async (ownerUserId: string, name: string) => {
-    // Insert team
+    // Insert team (the database trigger auto_add_team_owner_as_member
+    // automatically adds the owner as a team member)
     const { data: team, error: teamError } = await supabase
         .from('teams')
         .insert({ name, owner_user_id: ownerUserId })
@@ -21,20 +22,6 @@ export const createTeam = async (ownerUserId: string, name: string) => {
     if (teamError) {
         console.error('[teamService] Error creating team:', teamError);
         throw new Error(teamError.message);
-    }
-
-    // Add owner as team member
-    const { error: memberError } = await supabase
-        .from('team_members')
-        .insert({
-            team_id: team.id,
-            user_id: ownerUserId,
-            role: 'owner'
-        });
-
-    if (memberError) {
-        console.error('[teamService] Error adding owner as member:', memberError);
-        // Team was created, log error but continue
     }
 
     return team;
@@ -78,58 +65,77 @@ export const findUserByCustomId = async (customId: string): Promise<string | nul
 
 /** Retrieve or create a user profile (custom ID) for the authenticated Supabase user */
 export const getOrCreateUserProfile = async (supabaseUserId: string): Promise<string | null> => {
-    try {
-        console.log('[teamService] Getting profile from Supabase...');
+    // Add timeout to prevent infinite loading
+    const timeoutMs = 10000;
 
-        // 1. Try to fetch existing profile
-        const { data: existingProfile, error: fetchError } = await supabase
-            .from('user_profiles')
-            .select('custom_id')
-            .eq('user_id', supabaseUserId)
-            .single();
+    const profilePromise = async (): Promise<string | null> => {
+        try {
+            console.log('[teamService] Getting profile from Supabase...');
 
-        if (existingProfile?.custom_id) {
-            console.log('[teamService] Found existing profile:', existingProfile.custom_id);
-            return existingProfile.custom_id;
-        }
+            // 1. Try to fetch existing profile
+            const { data: existingProfile, error: fetchError } = await supabase
+                .from('user_profiles')
+                .select('custom_id')
+                .eq('user_id', supabaseUserId)
+                .single();
 
-        // 2. Profile not found (PGRST116 error code) - create new one
-        if (fetchError && fetchError.code !== 'PGRST116') {
-            console.error('[teamService] Error fetching profile:', fetchError);
-            return null;
-        }
-
-        console.log('[teamService] Creating new profile...');
-        const customId = generateCustomId();
-
-        const { data: newProfile, error: insertError } = await supabase
-            .from('user_profiles')
-            .insert({
-                user_id: supabaseUserId,
-                custom_id: customId
-            })
-            .select('custom_id')
-            .single();
-
-        if (insertError) {
-            // Handle race condition - profile might have been created by another request
-            if (insertError.code === '23505') {
-                const { data: raceProfile } = await supabase
-                    .from('user_profiles')
-                    .select('custom_id')
-                    .eq('user_id', supabaseUserId)
-                    .single();
-                return raceProfile?.custom_id || null;
+            if (existingProfile?.custom_id) {
+                console.log('[teamService] Found existing profile:', existingProfile.custom_id);
+                return existingProfile.custom_id;
             }
-            console.error('[teamService] Error creating profile:', insertError);
+
+            // 2. Profile not found (PGRST116 error code) - create new one
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('[teamService] Error fetching profile:', fetchError);
+                return null;
+            }
+
+            console.log('[teamService] Creating new profile...');
+            const customId = generateCustomId();
+
+            const { data: newProfile, error: insertError } = await supabase
+                .from('user_profiles')
+                .insert({
+                    user_id: supabaseUserId,
+                    custom_id: customId
+                })
+                .select('custom_id')
+                .single();
+
+            if (insertError) {
+                // Handle race condition - profile might have been created by another request
+                if (insertError.code === '23505') {
+                    const { data: raceProfile } = await supabase
+                        .from('user_profiles')
+                        .select('custom_id')
+                        .eq('user_id', supabaseUserId)
+                        .single();
+                    return raceProfile?.custom_id || null;
+                }
+                console.error('[teamService] Error creating profile:', insertError);
+                return null;
+            }
+
+            console.log('[teamService] Created new profile:', newProfile.custom_id);
+            return newProfile.custom_id;
+
+        } catch (e) {
+            console.error('[teamService] Unexpected error in getOrCreateUserProfile:', e);
             return null;
         }
+    };
 
-        console.log('[teamService] Created new profile:', newProfile.custom_id);
-        return newProfile.custom_id;
-
+    // Race between profile fetch and timeout
+    try {
+        const result = await Promise.race([
+            profilePromise(),
+            new Promise<null>((_, reject) =>
+                setTimeout(() => reject(new Error('Profile fetch timeout')), timeoutMs)
+            )
+        ]);
+        return result;
     } catch (e) {
-        console.error('[teamService] Unexpected error in getOrCreateUserProfile:', e);
+        console.error('[teamService] Profile fetch timed out after', timeoutMs, 'ms');
         return null;
     }
 };
@@ -155,58 +161,27 @@ export const findTeamByOwnerCustomId = async (ownerCustomId: string): Promise<{ 
 /** Join a team by the owner's custom ID */
 export const joinTeamByOwnerCustomId = async (ownerCustomId: string, currentUserId: string): Promise<{ success: boolean; error?: string; team_name?: string }> => {
     try {
-        // 1. Find the owner user by their custom_id
-        const ownerUserId = await findUserByCustomId(ownerCustomId);
-        if (!ownerUserId) {
-            return { success: false, error: 'Usuário não encontrado com este ID.' };
+        const response = await fetch('/api/join-team', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                owner_custom_id: ownerCustomId,
+                user_id: currentUserId
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { success: false, error: data.error || 'Erro ao entrar no time.' };
         }
 
-        // Prevent joining own team
-        if (ownerUserId === currentUserId) {
-            return { success: false, error: 'Você não pode entrar no seu próprio time.' };
-        }
-
-        // 2. Find the team owned by this user
-        const { data: team } = await supabase
-            .from('teams')
-            .select('id, name')
-            .eq('owner_user_id', ownerUserId)
-            .single();
-
-        if (!team) {
-            return { success: false, error: 'Este usuário não possui um time.' };
-        }
-
-        // 3. Check if already a member
-        const { data: existingMember } = await supabase
-            .from('team_members')
-            .select('id')
-            .eq('team_id', team.id)
-            .eq('user_id', currentUserId)
-            .single();
-
-        if (existingMember) {
-            return { success: false, error: 'Você já é membro deste time.' };
-        }
-
-        // 4. Add user as member
-        const { error: insertError } = await supabase
-            .from('team_members')
-            .insert({
-                team_id: team.id,
-                user_id: currentUserId,
-                role: 'member'
-            });
-
-        if (insertError) {
-            console.error('[teamService] Error joining team:', insertError);
-            return { success: false, error: 'Erro ao entrar no time.' };
-        }
-
-        return { success: true, team_name: team.name };
+        return { success: true, team_name: data.team_name };
     } catch (e: any) {
         console.error('[teamService] Error in joinTeamByOwnerCustomId:', e);
-        return { success: false, error: e.message || 'Erro ao entrar no time.' };
+        return { success: false, error: 'Erro de conexão ao tentar entrar no time.' };
     }
 };
 
