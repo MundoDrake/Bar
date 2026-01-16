@@ -40,27 +40,22 @@ export const stockServices = {
             .limit(1)
             .single();
 
-        // Get team members' user IDs
-        let teamUserIds = [user.id];
-        if (membership) {
-            const { data: teamMembers } = await supabase
-                .from('team_members')
-                .select('user_id')
-                .eq('team_id', membership.team_id);
-            teamUserIds = teamMembers?.map(m => m.user_id) || [user.id];
+        if (!membership) {
+            // User has no team - return empty array
+            return [];
         }
 
-        // Get movements for team's products
+        // Get movements for team's products (using team_id for proper sharing)
         const { data, error } = await supabase
             .from('stock_movements')
             .select(`
                 *,
                 products!inner (
                     name,
-                    user_id
+                    team_id
                 )
             `)
-            .in('products.user_id', teamUserIds)
+            .eq('products.team_id', membership.team_id)
             .order('created_at', { ascending: false })
             .limit(100);
 
@@ -95,17 +90,15 @@ export const stockServices = {
             .limit(1)
             .single();
 
-        // Get team members' user IDs
-        let teamUserIds = [user.id];
-        if (membership) {
-            const { data: teamMembers } = await supabase
-                .from('team_members')
-                .select('user_id')
-                .eq('team_id', membership.team_id);
-            teamUserIds = teamMembers?.map(m => m.user_id) || [user.id];
+        if (!membership) {
+            // User has no team - return empty data
+            return {
+                lowStock: [],
+                summary: { total_products: 0, low_stock_count: 0, expiring_soon_count: 0, total_movements_today: 0 }
+            };
         }
 
-        // Get products with stock
+        // Get products with stock using team_id for proper sharing
         const { data: products } = await supabase
             .from('products')
             .select(`
@@ -116,7 +109,7 @@ export const stockServices = {
                 min_stock_level,
                 stock (quantity)
             `)
-            .in('user_id', teamUserIds)
+            .eq('team_id', membership.team_id)
             .gt('min_stock_level', 0);
 
         const lowStock: LowStockProduct[] = (products || [])
@@ -133,11 +126,11 @@ export const stockServices = {
                 min_stock_level: p.min_stock_level
             }));
 
-        // Get total products count
+        // Get total products count using team_id
         const { count: totalProducts } = await supabase
             .from('products')
             .select('*', { count: 'exact', head: true })
-            .in('user_id', teamUserIds);
+            .eq('team_id', membership.team_id);
 
         const summary: StockSummary = {
             total_products: totalProducts || 0,
