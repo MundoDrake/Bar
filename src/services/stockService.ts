@@ -71,7 +71,7 @@ export const stockServices = {
     },
 
     /**
-     * Get low stock alerts and summary for dashboard
+     * Get low stock alerts and summary for dashboard (optimized)
      */
     getAlerts: async (): Promise<{ lowStock: LowStockProduct[]; summary: StockSummary }> => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -98,21 +98,30 @@ export const stockServices = {
             };
         }
 
-        // Get products with stock using team_id for proper sharing
-        const { data: products } = await supabase
-            .from('products')
-            .select(`
-                id,
-                name,
-                category,
-                unit,
-                min_stock_level,
-                stock (quantity)
-            `)
-            .eq('team_id', membership.team_id)
-            .gt('min_stock_level', 0);
+        // Run queries in parallel for faster loading
+        const [productsResult, summaryResult] = await Promise.all([
+            // Get products with stock using team_id for proper sharing
+            supabase
+                .from('products')
+                .select(`
+                    id,
+                    name,
+                    category,
+                    unit,
+                    min_stock_level,
+                    stock (quantity)
+                `)
+                .eq('team_id', membership.team_id)
+                .gt('min_stock_level', 0),
 
-        const lowStock: LowStockProduct[] = (products || [])
+            // Use optimized RPC function for summary
+            supabase.rpc('get_stock_summary', { p_team_id: membership.team_id })
+        ]);
+
+        const products = productsResult.data || [];
+        const summaryData = summaryResult.data?.[0];
+
+        const lowStock: LowStockProduct[] = products
             .filter(p => {
                 const qty = Array.isArray(p.stock) ? p.stock[0]?.quantity || 0 : 0;
                 return qty <= p.min_stock_level;
@@ -126,17 +135,11 @@ export const stockServices = {
                 min_stock_level: p.min_stock_level
             }));
 
-        // Get total products count using team_id
-        const { count: totalProducts } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .eq('team_id', membership.team_id);
-
         const summary: StockSummary = {
-            total_products: totalProducts || 0,
-            low_stock_count: lowStock.length,
-            expiring_soon_count: 0,
-            total_movements_today: 0
+            total_products: Number(summaryData?.total_products || 0),
+            low_stock_count: Number(summaryData?.low_stock_count || 0),
+            expiring_soon_count: Number(summaryData?.expiring_soon_count || 0),
+            total_movements_today: Number(summaryData?.total_movements_today || 0)
         };
 
         return { lowStock, summary };
