@@ -31,10 +31,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     useEffect(() => {
         let mounted = true;
 
-        // Get initial session
+        // Get initial session with timeout to prevent infinite loading
         const initSession = async () => {
+            // Create a timeout promise to prevent infinite loading
+            const timeoutPromise = new Promise<null>((_, reject) => {
+                setTimeout(() => reject(new Error('Session timeout')), 8000)
+            })
+
             try {
-                const { data: { session } } = await supabase.auth.getSession()
+                // Race between getSession and timeout
+                const result = await Promise.race([
+                    supabase.auth.getSession(),
+                    timeoutPromise
+                ]) as { data: { session: Session | null } }
+
+                const session = result?.data?.session
 
                 if (mounted) {
                     console.log('[AuthContext] Initial session:', session?.user?.id)
@@ -56,6 +67,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 }
             } catch (error) {
                 console.error('[AuthContext] Initialization error:', error)
+
+                // If timeout or error, clear potentially corrupt data and start fresh
+                if ((error as Error).message === 'Session timeout') {
+                    console.warn('[AuthContext] Session loading timed out - clearing corrupt cache')
+                    localStorage.clear()
+                    // Keep app_version to avoid loop
+                    localStorage.setItem('app_version', 'v1-cache-fix')
+                }
+
+                if (mounted) {
+                    setSession(null)
+                    setUser(null)
+                    setCustomId(null)
+                }
             } finally {
                 if (mounted) {
                     setLoading(false)

@@ -8,7 +8,7 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
-            registerType: 'autoUpdate',
+            registerType: 'prompt',
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
             manifest: {
                 name: 'Bar Stock Manager',
@@ -41,20 +41,21 @@ export default defineConfig({
             },
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+                // Force the new service worker to take over immediately
+                skipWaiting: true,
+                clientsClaim: true,
+                // Exclude API and auth calls from navigation fallback
+                navigateFallbackDenylist: [/^\/api\//, /supabase/, /auth/],
                 runtimeCaching: [
                     {
+                        // NEVER cache Supabase auth calls - always go to network
                         urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-                        handler: 'NetworkFirst',
-                        options: {
-                            cacheName: 'supabase-api-cache',
-                            expiration: {
-                                maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24, // 24 hours
-                            },
-                            cacheableResponse: {
-                                statuses: [0, 200],
-                            },
-                        },
+                        handler: 'NetworkOnly',
+                    },
+                    {
+                        // Don't cache API calls at all - use network only
+                        urlPattern: /\/api\/.*/i,
+                        handler: 'NetworkOnly',
                     },
                 ],
             },

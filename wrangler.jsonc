@@ -12,5 +12,8 @@
         "directory": "./dist",
         "binding": "ASSETS"
     },
+    "vars": {
+        "SUPABASE_URL": "https://njdewblpowlwsftzixlu.supabase.co"
+    },
     "main": "src/worker/index.ts"
 }

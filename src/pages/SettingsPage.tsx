@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-// Force rebuild timestamp: 2026-01-15 16:30
 
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../hooks/usePreferences'
@@ -22,23 +21,28 @@ export function SettingsPage() {
     const [displayName, setDisplayName] = useState('')
     const [savingName, setSavingName] = useState(false)
 
-    // Load display name on mount
+    // Load display name on mount from Supabase
     useEffect(() => {
-        if (user?.id) {
-            supabase
-                .from('user_profiles')
-                .select('display_name')
-                .eq('user_id', user.id)
-                .maybeSingle()
-                .then(({ data }) => {
-                    if (data?.display_name) {
-                        setDisplayName(data.display_name)
-                    }
-                })
+        const loadDisplayName = async () => {
+            if (!user?.id) return
+            try {
+                const { data } = await supabase
+                    .from('user_profiles')
+                    .select('display_name')
+                    .eq('user_id', user.id)
+                    .single()
+
+                if (data?.display_name) {
+                    setDisplayName(data.display_name)
+                }
+            } catch {
+                // Profile might not exist yet, that's ok
+            }
         }
+        loadDisplayName()
     }, [user?.id])
 
-    // Save display name
+    // Save display name via Supabase
     const handleSaveDisplayName = async () => {
         if (!user?.id) return
         setSavingName(true)
@@ -47,7 +51,10 @@ export function SettingsPage() {
         try {
             const { error } = await supabase
                 .from('user_profiles')
-                .update({ display_name: displayName.trim() || null })
+                .update({
+                    display_name: displayName.trim() || null,
+                    updated_at: new Date().toISOString()
+                })
                 .eq('user_id', user.id)
 
             if (error) throw error
@@ -107,21 +114,7 @@ export function SettingsPage() {
 
         try {
             // 1. Identificar o time do usuário (Dono)
-            // Tenta achar no estado local primeiro
-            let myTeam = teams.find(t => t.owner_user_id === user.id)
-
-            // Fallback: Se não achar no estado, busca direto no banco (pode ser delay de atualização)
-            if (!myTeam) {
-                const { data } = await supabase
-                    .from('teams')
-                    .select('*')
-                    .eq('owner_user_id', user.id)
-                    .maybeSingle();
-
-                if (data) {
-                    myTeam = data;
-                }
-            }
+            const myTeam = teams.find(t => t.owner_user_id === user.id)
 
             if (!myTeam) {
                 setSaveMessage({ type: 'error', text: 'Você precisa ser dono de um time para adicionar membros.' })
@@ -129,9 +122,9 @@ export function SettingsPage() {
                 return
             }
 
-            // 2. Buscar usuário pelo ID customizado
-            // Find user by Custom ID
-            const targetUserId = await findUserByCustomId(memberIdToAdd.trim().toUpperCase());
+            // 2. Buscar usuário pelo ID customizado via Supabase
+            const targetUserId = await findUserByCustomId(memberIdToAdd.trim().toUpperCase())
+
             if (!targetUserId) {
                 setSaveMessage({ type: 'error', text: 'Usuário não encontrado com este ID.' });
                 setAddingMember(false);
@@ -145,14 +138,14 @@ export function SettingsPage() {
             }
 
             // 3. Adicionar ao time
-            // Add to team - this function might throw if already member (handled in catch or if logic allows)
-            await addMemberToTeam(myTeam.id, targetUserId); // Ignoring return value if void, or checking result
+            await addMemberToTeam(myTeam.id, targetUserId);
 
             setSaveMessage({ type: 'success', text: 'Membro adicionado com sucesso!' })
             setMemberIdToAdd('')
         } catch (e: unknown) {
             console.error('Error in handleAddMember:', e);
-            if ((e as { code?: string }).code === '23505') { // Unique violation
+            const errorMsg = e instanceof Error ? e.message : '';
+            if (errorMsg.includes('already a member') || (e as { code?: string }).code === '23505') {
                 setSaveMessage({ type: 'error', text: 'Este usuário já está no time.' });
             } else {
                 setSaveMessage({ type: 'error', text: 'Erro ao adicionar membro.' })
