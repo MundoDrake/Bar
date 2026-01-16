@@ -12,15 +12,27 @@ export async function verifySupabaseToken(token: string, supabaseUrl: string): P
             JWKS = createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/jwks`));
         }
 
-        const { payload } = await jwtVerify(token, JWKS);
+        const { payload } = await jwtVerify(token, JWKS, {
+            issuer: `${supabaseUrl}/auth/v1`,
+            audience: 'authenticated',
+        });
 
         return {
             valid: true,
             userId: payload.sub as string,
             email: payload.email as string
         };
-    } catch (e) {
-        console.error('Token verification failed:', e);
-        return { valid: false, error: 'Invalid token' };
+    } catch (e: any) {
+        console.error('Token verification failed:', e.message);
+        
+        // If JWKS fails, clear it so it can be retried on next request
+        if (e.code === 'ERR_JWKS_FETCH_FAILED' || e.message?.includes('fetch failed')) {
+            JWKS = null;
+        }
+
+        return { 
+            valid: false, 
+            error: e.code === 'ERR_JWT_EXPIRED' ? 'Token expired' : 'Invalid token' 
+        };
     }
 }
