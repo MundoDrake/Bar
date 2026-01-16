@@ -1,5 +1,5 @@
 {
-    "name": "bar-stock-manager",
+    "name": "gestaobar",
     "compatibility_date": "2024-01-14",
     "assets": {
         "directory": "./dist"
