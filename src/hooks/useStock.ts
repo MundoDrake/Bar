@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { stockServices } from '../services/stockService'
+import { productServices } from '../services/productService'
 import type {
     ProductWithStock,
     StockMovement,
@@ -29,18 +30,7 @@ export function useStock(): UseStockReturn {
         try {
             setLoading(true)
             setError(null)
-
-            const { data, error: fetchError } = await supabase
-                .from('products')
-                .select(`
-          *,
-          stock (*)
-        `)
-                // .eq('user_id', user.id) -- Removed to allow RLS to handle team access
-                .order('name')
-
-            if (fetchError) throw fetchError
-
+            const data = await productServices.getAll()
             setStockItems(data || [])
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao carregar estoque'
@@ -57,17 +47,7 @@ export function useStock(): UseStockReturn {
 
     const registerMovement = async (data: StockMovementFormData) => {
         try {
-            const { error: rpcError } = await supabase.rpc('register_stock_movement', {
-                p_product_id: data.product_id,
-                p_type: data.type,
-                p_quantity: data.quantity,
-                p_reason: data.reason || null,
-                p_expiry_date: data.expiry_date || null,
-                p_notes: data.notes || null,
-            })
-
-            if (rpcError) throw rpcError
-
+            await stockServices.registerMovement(data)
             await fetchStock()
             return { error: null }
         } catch (err) {
@@ -105,27 +85,12 @@ export function useMovements(productId?: string): UseMovementsReturn {
         try {
             setLoading(true)
             setError(null)
-
-            let query = supabase
-                .from('stock_movements')
-                .select(`
-          *,
-          product:products!inner (name, user_id)
-        `)
-                .order('created_at', { ascending: false })
-                .limit(100)
-
-            if (productId) {
-                query = query.eq('product_id', productId)
-            }
-
-            const { data, error: fetchError } = await query
-
-            if (fetchError) throw fetchError
-
-            // Removed manual filtering to allow RLS to handle team access
-            // const filteredData = (data || []).filter(...) 
-            setMovements(data || [])
+            const data = await stockServices.getMovements()
+            // Client-side filter if productId is provided (since API returns all)
+            // Or we could update API to accept filter. Ideally API updates.
+            // For now, simple filter:
+            const filtered = productId ? data.filter(m => m.product_id === productId) : data
+            setMovements(filtered || [])
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao carregar movimentações'
             setError(message)
@@ -169,25 +134,9 @@ export function useAlerts(): UseAlertsReturn {
         try {
             setLoading(true)
             setError(null)
-
-            // Fetch low stock products
-            const { data: lowStock, error: lowStockError } = await supabase.rpc(
-                'get_low_stock_products',
-                { p_user_id: user.id }
-            )
-
-            if (lowStockError) throw lowStockError
-
-            // Fetch summary
-            const { data: summaryData, error: summaryError } = await supabase.rpc(
-                'get_stock_summary',
-                { p_user_id: user.id }
-            )
-
-            if (summaryError) throw summaryError
-
-            setLowStockProducts(lowStock || [])
-            setSummary(summaryData?.[0] || null)
+            const data = await stockServices.getAlerts()
+            setLowStockProducts(data.lowStock || [])
+            setSummary(data.summary || null)
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao carregar alertas'
             setError(message)
