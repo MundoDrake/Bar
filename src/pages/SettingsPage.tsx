@@ -54,7 +54,7 @@ export function SettingsPage() {
 
             setSaveMessage({ type: 'success', text: 'Nome salvo com sucesso!' })
             setTimeout(() => setSaveMessage(null), 3000)
-        } catch (e) {
+        } catch {
             setSaveMessage({ type: 'error', text: 'Erro ao salvar nome.' })
         }
 
@@ -150,9 +150,9 @@ export function SettingsPage() {
 
             setSaveMessage({ type: 'success', text: 'Membro adicionado com sucesso!' })
             setMemberIdToAdd('')
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Error in handleAddMember:', e);
-            if (e.code === '23505') { // Unique violation
+            if ((e as { code?: string }).code === '23505') { // Unique violation
                 setSaveMessage({ type: 'error', text: 'Este usuário já está no time.' });
             } else {
                 setSaveMessage({ type: 'error', text: 'Erro ao adicionar membro.' })

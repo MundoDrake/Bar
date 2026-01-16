@@ -146,9 +146,9 @@ export const joinTeamByOwnerCustomId = async (ownerCustomId: string, currentUser
         await addMemberToTeam(teamInfo.teamId, currentUserId);
 
         return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error('[teamService] Error joining team:', e);
-        if (e.code === '23505') {
+        if ((e as { code?: string }).code === '23505') {
             return { success: false, error: 'Você já é membro deste time.' };
         }
         return { success: false, error: 'Erro ao entrar no time.' };

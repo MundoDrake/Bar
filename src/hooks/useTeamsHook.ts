@@ -38,11 +38,11 @@ export const useTeams = () => {
                 return;
             }
 
-            const teamIds = memberRows.map((r: any) => r.team_id);
+            const teamIds = memberRows.map((r: { team_id: string }) => r.team_id);
 
             // Set current user's membership info (for route filtering)
             if (memberRows.length > 0) {
-                const myMembership = memberRows[0] as any;
+                const myMembership = memberRows[0] as { team_id: string; allowed_routes: string[] | null };
                 setCurrentMember({
                     id: '',
                     team_id: myMembership.team_id,
@@ -75,9 +75,10 @@ export const useTeams = () => {
 
             // Check if current user is owner
             const isOwner = (teamRows as Team[]).some(t => t.owner_user_id === user.id);
-            if (currentMember) {
-                setCurrentMember(prev => prev ? { ...prev, role: isOwner ? 'owner' : 'member' } : null);
-            }
+            setCurrentMember(prev => {
+                if (!prev) return null;
+                return { ...prev, role: isOwner ? 'owner' : 'member' };
+            });
 
             // Load members for each team with profile info
             const membersMap: Record<string, TeamMemberWithProfile[]> = {};

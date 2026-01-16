@@ -45,10 +45,10 @@ export function TeamsPage() {
             setInviteId('');
             if (refresh) refresh();
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error inviting member:', err);
             // Check for unique violation or other errors
-            if (err.code === '23505') { // Unique violation
+            if ((err as { code?: string }).code === '23505') { // Unique violation
                 setMessage({ type: 'error', text: 'Este usuário já está no time.' });
             } else {
                 setMessage({ type: 'error', text: 'Erro ao adicionar membro.' });

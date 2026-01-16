@@ -63,7 +63,7 @@ export function WelcomePage() {
             } else {
                 setError(result.error || 'Erro ao entrar no time.')
             }
-        } catch (e) {
+        } catch {
             setError('Erro ao processar. Verifique o ID.')
         }
 
