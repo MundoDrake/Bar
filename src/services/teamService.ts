@@ -53,7 +53,7 @@ export const getOrCreateUserProfile = async (supabaseUserId: string): Promise<st
     try {
         console.log('[teamService] Getting or creating profile for user:', supabaseUserId);
 
-        // Try to fetch existing profile
+        // 1. Try to fetch existing profile
         const { data, error } = await supabase
             .from('user_profiles')
             .select('custom_id')
@@ -63,24 +63,40 @@ export const getOrCreateUserProfile = async (supabaseUserId: string): Promise<st
 
         if (error) {
             console.error('[teamService] Error fetching user profile:', error);
-            // Don't return null immediately on error, try to create if it's not a permission error? 
-            // Better to fail safe.
+            // If error is not connection related, maybe we return null. 
+            // But let's fail safe and return null so the auth context doesn't loop forever properly
             return null;
         }
 
         if (data && data.custom_id) {
-            console.log('[teamService] Found existing profile:', data.custom_id);
+            // console.log('[teamService] Found existing profile:', data.custom_id); // Reduce logs
             return data.custom_id as string;
         }
 
-        // No profile – create one
+        // 2. No profile found – try to create one
         console.log('[teamService] Creating new profile for user:', supabaseUserId);
         const customId = generateCustomId();
+
         const { error: insertErr } = await supabase
             .from('user_profiles')
             .insert({ user_id: supabaseUserId, custom_id: customId });
 
         if (insertErr) {
+            // CHECK FOR RACE CONDITION (Unique Violation code: 23505)
+            if (insertErr.code === '23505') {
+                console.log('[teamService] Race condition detected: Profile already created by another tab. Fetching again...');
+                // Retry fetch immediately
+                const { data: retryData } = await supabase
+                    .from('user_profiles')
+                    .select('custom_id')
+                    .eq('user_id', supabaseUserId)
+                    .maybeSingle();
+
+                if (retryData?.custom_id) {
+                    return retryData.custom_id;
+                }
+            }
+
             console.error('[teamService] Error creating user profile:', insertErr);
             return null;
         }
