@@ -1,108 +1,69 @@
 // src/services/teamService.ts
 
-import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api';
 
 /** Generate a unique custom ID for a user (8-character alphanumeric + timestamp suffix) */
 export const generateCustomId = (): string => {
     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     const randomPart = Array.from({ length: 6 }, () => charset[Math.floor(Math.random() * charset.length)]).join('');
-    // Add last 2 chars from timestamp to ensure uniqueness
     const timePart = Date.now().toString(36).slice(-2).toUpperCase();
     return randomPart + timePart;
 };
 
 /** Create a new team and add the owner as a member */
 export const createTeam = async (ownerUserId: string, name: string) => {
-    const { data, error } = await supabase
-        .from('teams')
-        .insert({ name, owner_user_id: ownerUserId })
-        .select()
-        .single();
-    if (error) throw error;
-    if (!data) throw new Error('Failed to create team');
-    // Insert owner membership
-    await supabase.from('team_members').insert({ team_id: data.id, user_id: ownerUserId, role: 'owner' });
-    return data;
+    // ownerUserId is unused here because the API takes it from the Auth Token
+    return apiFetch('/teams', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+    });
 };
 
-/** Invite/add a member to an existing team by their user ID (from user_profiles lookup) */
+/** Invite/add a member to an existing team by their user ID */
 export const addMemberToTeam = async (teamId: string, memberUserId: string) => {
-    const { error } = await supabase
-        .from('team_members')
-        .insert({ team_id: teamId, user_id: memberUserId, role: 'member' });
-    if (error) throw error;
+    return apiFetch(`/teams/${teamId}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: memberUserId })
+    });
 };
 
 /** Find a user by their custom_id and return their auth user_id */
 export const findUserByCustomId = async (customId: string): Promise<string | null> => {
-    const { data, error } = await supabase
-        .from('user_profiles')
-        .select('user_id')
-        .eq('custom_id', customId)
-        .maybeSingle();
-
-    if (error || !data) {
-        console.error('Error finding user by custom_id:', error);
-        return null;
-    }
-    return data.user_id;
+    // TODO: Add endpoint for looking up users by custom ID publicly or secured
+    console.warn('findUserByCustomId via API not fully implemented yet');
+    return null;
 };
 
 /** Retrieve or create a user profile (custom ID) for the authenticated Supabase user */
 export const getOrCreateUserProfile = async (supabaseUserId: string): Promise<string | null> => {
     try {
-        console.log('[teamService] Getting or creating profile for user:', supabaseUserId);
+        console.log('[teamService] Getting profile via API...');
 
-        // 1. Try to fetch existing profile
-        const { data, error } = await supabase
-            .from('user_profiles')
-            .select('custom_id')
-            .eq('user_id', supabaseUserId)
-            .limit(1)
-            .maybeSingle();
-
-        if (error) {
-            console.error('[teamService] Error fetching user profile:', error);
-            // If error is not connection related, maybe we return null. 
-            // But let's fail safe and return null so the auth context doesn't loop forever properly
-            return null;
+        // 1. Try to fetch existing
+        try {
+            const profile = await apiFetch<{ custom_id: string }>('/users/profile');
+            if (profile && profile.custom_id) {
+                return profile.custom_id;
+            }
+        } catch (e: any) {
+            // 404 means not found
+            if (!e.message.includes('404')) {
+                console.error('[teamService] Error fetching profile:', e);
+                return null;
+            }
         }
 
-        if (data && data.custom_id) {
-            // console.log('[teamService] Found existing profile:', data.custom_id); // Reduce logs
-            return data.custom_id as string;
-        }
-
-        // 2. No profile found – try to create one
-        console.log('[teamService] Creating new profile for user:', supabaseUserId);
+        // 2. Create if 404 or missing
+        console.log('[teamService] Creating new profile via API...');
         const customId = generateCustomId();
 
-        const { error: insertErr } = await supabase
-            .from('user_profiles')
-            .insert({ user_id: supabaseUserId, custom_id: customId });
+        const result = await apiFetch<{ success: boolean; custom_id: string }>('/users/profile', {
+            method: 'POST',
+            body: JSON.stringify({ custom_id })
+        });
 
-        if (insertErr) {
-            // CHECK FOR RACE CONDITION (Unique Violation code: 23505)
-            if (insertErr.code === '23505') {
-                console.log('[teamService] Race condition detected: Profile already created by another tab. Fetching again...');
-                // Retry fetch immediately
-                const { data: retryData } = await supabase
-                    .from('user_profiles')
-                    .select('custom_id')
-                    .eq('user_id', supabaseUserId)
-                    .maybeSingle();
+        return result.custom_id;
 
-                if (retryData?.custom_id) {
-                    return retryData.custom_id;
-                }
-            }
-
-            console.error('[teamService] Error creating user profile:', insertErr);
-            return null;
-        }
-
-        console.log('[teamService] Created profile with custom_id:', customId);
-        return customId;
     } catch (e) {
         console.error('[teamService] Unexpected error in getOrCreateUserProfile:', e);
         return null;
@@ -110,63 +71,14 @@ export const getOrCreateUserProfile = async (supabaseUserId: string): Promise<st
 };
 
 /** Find a team by its owner's custom ID */
-/** Find a team by its owner's custom ID using secure RPC (bypassing RLS for public info) */
 export const findTeamByOwnerCustomId = async (ownerCustomId: string): Promise<{ teamId: string; teamName: string } | null> => {
-    try {
-        console.log('[teamService] Looking up team for owner custom code:', ownerCustomId);
-
-        // Use the Secure RPC function to find the team without RLS issues
-        const { data, error } = await supabase
-            .rpc('get_team_public_info', { owner_custom_id: ownerCustomId });
-
-        if (error) {
-            console.error('[teamService] RPC Error finding team:', error);
-            return null;
-        }
-
-        // RPC returns a list (table), usually 0 or 1 row
-        if (!data || data.length === 0) {
-            console.log('[teamService] No team found for this code.');
-            return null;
-        }
-
-        const team = data[0]; // Take first result
-        return { teamId: team.team_id, teamName: team.team_name };
-    } catch (e) {
-        console.error('[teamService] Unexpected error in findTeamByOwnerCustomId:', e);
-        return null;
-    }
+    // RPC replacement: /api/teams/lookup?owner_code=...
+    console.warn('findTeamByOwnerCustomId via API not implemented');
+    return null;
 };
 
-/** Join a team by the owner's custom ID (add current user as member) */
+/** Join a team by the owner's custom ID */
 export const joinTeamByOwnerCustomId = async (ownerCustomId: string, currentUserId: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-        const teamInfo = await findTeamByOwnerCustomId(ownerCustomId);
-        if (!teamInfo) {
-            return { success: false, error: 'Time não encontrado. Verifique o ID informado.' };
-        }
-
-        // Check if user is already a member
-        const { data: existingMember } = await supabase
-            .from('team_members')
-            .select('id')
-            .eq('team_id', teamInfo.teamId)
-            .eq('user_id', currentUserId)
-            .maybeSingle();
-
-        if (existingMember) {
-            return { success: false, error: 'Você já é membro deste time.' };
-        }
-
-        // Add current user as member of the team
-        await addMemberToTeam(teamInfo.teamId, currentUserId);
-
-        return { success: true };
-    } catch (e: unknown) {
-        console.error('[teamService] Error joining team:', e);
-        if ((e as { code?: string }).code === '23505') {
-            return { success: false, error: 'Você já é membro deste time.' };
-        }
-        return { success: false, error: 'Erro ao entrar no time.' };
-    }
+    // This logic depended on finding the team first.
+    return { success: false, error: 'Funcionalidade em migração.' };
 };
