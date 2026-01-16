@@ -28,14 +28,12 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
         ...options.headers,
     };
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    let response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         headers,
     });
 
     // 3. Handle 401 Unauthorized
-    // If we get a 401, it means the Worker rejected the token.
-    // We only attempt ONE refresh to avoid infinite loops.
     if (response.status === 401 && !options.headers?.hasOwnProperty('X-Retry')) {
         console.warn('[apiFetch] 401 Unauthorized, attempting session refresh...');
         
@@ -45,26 +43,16 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
             const newToken = refreshData.session.access_token;
             console.log('[apiFetch] Session refreshed, retrying request...');
             
-            // Retry the request once with the new token and a marker to prevent loops
-            const retryResponse = await fetch(`${API_BASE}${endpoint}`, {
+            response = await fetch(`${API_BASE}${endpoint}`, {
                 ...options,
                 headers: {
                     ...headers,
                     'Authorization': `Bearer ${newToken}`,
-                    'X-Retry': 'true' // Marker to prevent infinite recursion
+                    'X-Retry': 'true'
                 },
             });
-            
-            if (retryResponse.ok) {
-                if (retryResponse.status === 204) return {} as T;
-                return retryResponse.json();
-            }
-            
-            if (retryResponse.status === 401) {
-                console.error('[apiFetch] 401 even after refresh. Possible Worker/Supabase config mismatch.');
-            }
         } else {
-            console.error('[apiFetch] Session refresh failed or no session returned');
+            console.error('[apiFetch] Session refresh failed:', refreshError);
         }
     }
 
@@ -72,14 +60,15 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
         let errorMessage = 'API Error';
         try {
             const errorData = await response.json();
+            console.error(`[apiFetch] Error ${response.status} on ${endpoint}:`, errorData);
             errorMessage = errorData.error || errorMessage;
         } catch {
             errorMessage = response.statusText;
+            console.error(`[apiFetch] Error ${response.status} on ${endpoint}:`, errorMessage);
         }
         throw new Error(errorMessage);
     }
 
-    // Handle empty responses (e.g. 204)
     if (response.status === 204) {
         return {} as T;
     }
