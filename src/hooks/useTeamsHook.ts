@@ -19,11 +19,16 @@ export const useTeams = () => {
     const [loading, setLoading] = useState(true);
 
     const fetch = useCallback(async () => {
-        setLoading(true);
+        // If no user is present, don't set loading true, just default to empty/false states
+        // But if user is defined, we start loading.
         if (!user?.id) {
+            setTeams([]);
+            setMembers({});
             setLoading(false);
             return;
         }
+
+        setLoading(true);
 
         try {
             // Get team memberships for this user
@@ -111,6 +116,7 @@ export const useTeams = () => {
         } catch (err) {
             console.error('[useTeams] Unexpected error:', err);
         } finally {
+            // Ensure loading is turned off in all paths
             setLoading(false);
         }
     }, [user?.id]);

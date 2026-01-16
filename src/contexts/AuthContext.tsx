@@ -29,40 +29,75 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [customId, setCustomId] = useState<string | null>(null)
 
     useEffect(() => {
+        let mounted = true;
+
         // Get initial session
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            console.log('[AuthContext] Initial session:', session?.user?.id)
-            setSession(session)
-            setUser(session?.user ?? null)
-            if (session?.user?.id) {
-                console.log('[AuthContext] Fetching customId for user:', session.user.id)
-                const cid = await getOrCreateUserProfile(session.user.id)
-                console.log('[AuthContext] Got customId:', cid)
-                setCustomId(cid)
+        const initSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession()
+
+                if (mounted) {
+                    console.log('[AuthContext] Initial session:', session?.user?.id)
+                    setSession(session)
+                    setUser(session?.user ?? null)
+
+                    if (session?.user?.id) {
+                        try {
+                            console.log('[AuthContext] Fetching customId for user:', session.user.id)
+                            const cid = await getOrCreateUserProfile(session.user.id)
+                            if (mounted) {
+                                console.log('[AuthContext] Got customId:', cid)
+                                setCustomId(cid)
+                            }
+                        } catch (e) {
+                            console.error('[AuthContext] Error fetching profile:', e)
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('[AuthContext] Initialization error:', error)
+            } finally {
+                if (mounted) {
+                    setLoading(false)
+                }
             }
-            setLoading(false)
-        })
+        }
+
+        initSession()
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, session) => {
+                if (!mounted) return
+
                 console.log('[AuthContext] Auth state changed:', _event, session?.user?.id)
                 setSession(session)
                 setUser(session?.user ?? null)
 
+                // If we have a session but it's a new user (different from previous), fetch profile
                 if (session?.user?.id) {
-                    const cid = await getOrCreateUserProfile(session.user.id)
-                    console.log('[AuthContext] Got customId on change:', cid)
-                    setCustomId(cid)
+                    try {
+                        const cid = await getOrCreateUserProfile(session.user.id)
+                        if (mounted) {
+                            console.log('[AuthContext] Got customId on change:', cid)
+                            setCustomId(cid)
+                        }
+                    } catch (e) {
+                        console.error('[AuthContext] Error fetching profile on change:', e)
+                    }
                 } else {
                     // Start of cleaning state
                     setCustomId(null)
                 }
+
                 setLoading(false)
             }
         )
 
-        return () => subscription.unsubscribe()
+        return () => {
+            mounted = false
+            subscription.unsubscribe()
+        }
     }, [])
 
     const signUp = async (email: string, password: string) => {
