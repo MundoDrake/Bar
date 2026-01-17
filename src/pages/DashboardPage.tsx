@@ -22,8 +22,8 @@ export function DashboardPage() {
                 <div className="stat-card">
                     <div className="stat-icon primary">📦</div>
                     <div className="stat-info">
-                        <div className="stat-value">
-                            {loading ? '-' : summary?.total_products ?? 0}
+                        <div className="stat-value" style={{ opacity: loading ? 0.5 : 1 }}>
+                            {loading ? '...' : summary?.total_products ?? 0}
                         </div>
                         <div className="stat-label">Total de Produtos</div>
                     </div>
@@ -32,8 +32,8 @@ export function DashboardPage() {
                 <div className="stat-card">
                     <div className="stat-icon warning">⚠️</div>
                     <div className="stat-info">
-                        <div className="stat-value">
-                            {loading ? '-' : summary?.low_stock_count ?? 0}
+                        <div className="stat-value" style={{ opacity: loading ? 0.5 : 1 }}>
+                            {loading ? '...' : summary?.low_stock_count ?? 0}
                         </div>
                         <div className="stat-label">Estoque Baixo</div>
                     </div>
@@ -42,8 +42,8 @@ export function DashboardPage() {
                 <div className="stat-card">
                     <div className="stat-icon error">📅</div>
                     <div className="stat-info">
-                        <div className="stat-value">
-                            {loading ? '-' : summary?.expiring_soon_count ?? 0}
+                        <div className="stat-value" style={{ opacity: loading ? 0.5 : 1 }}>
+                            {loading ? '...' : summary?.expiring_soon_count ?? 0}
                         </div>
                         <div className="stat-label">Vencendo em 7 dias</div>
                     </div>
@@ -52,8 +52,8 @@ export function DashboardPage() {
                 <div className="stat-card">
                     <div className="stat-icon success">🔄</div>
                     <div className="stat-info">
-                        <div className="stat-value">
-                            {loading ? '-' : summary?.total_movements_today ?? 0}
+                        <div className="stat-value" style={{ opacity: loading ? 0.5 : 1 }}>
+                            {loading ? '...' : summary?.total_movements_today ?? 0}
                         </div>
                         <div className="stat-label">Movimentações Hoje</div>
                     </div>

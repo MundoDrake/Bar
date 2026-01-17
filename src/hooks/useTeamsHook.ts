@@ -82,13 +82,12 @@ export const useTeams = () => {
                     created_at: ''
                 });
 
-                // Fetch all members for teams where user is owner
-                const membersMap: Record<string, TeamMemberWithProfile[]> = {};
+                // Fetch all members for teams where user is owner (in parallel)
+                const ownedTeams = teamRows.filter(t => t.owner_user_id === user.id);
 
-                for (const teamRow of teamRows) {
-                    // Only fetch members if user is owner of this team
-                    if (teamRow.owner_user_id === user.id) {
-                        const { data: allMembers } = await supabase
+                if (ownedTeams.length > 0) {
+                    const memberPromises = ownedTeams.map(teamRow =>
+                        supabase
                             .from('team_members')
                             .select(`
                                 id,
@@ -102,10 +101,16 @@ export const useTeams = () => {
                                     display_name
                                 )
                             `)
-                            .eq('team_id', teamRow.id);
+                            .eq('team_id', teamRow.id)
+                            .then(result => ({ teamId: teamRow.id, data: result.data }))
+                    );
 
-                        if (allMembers) {
-                            membersMap[teamRow.id] = allMembers.map(m => ({
+                    const memberResults = await Promise.all(memberPromises);
+
+                    const membersMap: Record<string, TeamMemberWithProfile[]> = {};
+                    memberResults.forEach(({ teamId, data }) => {
+                        if (data) {
+                            membersMap[teamId] = data.map(m => ({
                                 id: m.id,
                                 team_id: m.team_id,
                                 user_id: m.user_id,
@@ -116,10 +121,12 @@ export const useTeams = () => {
                                 display_name: (m.profile as any)?.display_name || undefined
                             }));
                         }
-                    }
-                }
+                    });
 
-                setMembers(membersMap);
+                    setMembers(membersMap);
+                } else {
+                    setMembers({});
+                }
             }
 
         } catch (err) {

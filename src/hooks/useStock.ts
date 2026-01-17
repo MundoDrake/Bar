@@ -112,6 +112,14 @@ export function useMovements(productId?: string): UseMovementsReturn {
     }
 }
 
+// Simple cache for alerts (30 seconds TTL)
+let alertsCache: {
+    data: { lowStock: LowStockProduct[]; summary: StockSummary } | null
+    timestamp: number
+} = { data: null, timestamp: 0 };
+
+const CACHE_TTL = 30000; // 30 seconds
+
 // Hook for alerts (low stock + expiring)
 interface UseAlertsReturn {
     lowStockProducts: LowStockProduct[]
@@ -128,13 +136,29 @@ export function useAlerts(): UseAlertsReturn {
     const [error, setError] = useState<string | null>(null)
     const { user } = useAuth()
 
-    const fetchAlerts = useCallback(async () => {
-        if (!user) return
+    const fetchAlerts = useCallback(async (force = false) => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        // Check cache first (skip if force refresh)
+        const now = Date.now();
+        if (!force && alertsCache.data && (now - alertsCache.timestamp) < CACHE_TTL) {
+            setLowStockProducts(alertsCache.data.lowStock || []);
+            setSummary(alertsCache.data.summary || null);
+            setLoading(false);
+            return;
+        }
 
         try {
             setLoading(true)
             setError(null)
             const data = await stockServices.getAlerts()
+
+            // Update cache
+            alertsCache = { data, timestamp: Date.now() };
+
             setLowStockProducts(data.lowStock || [])
             setSummary(data.summary || null)
         } catch (err) {
@@ -155,6 +179,6 @@ export function useAlerts(): UseAlertsReturn {
         summary,
         loading,
         error,
-        refreshAlerts: fetchAlerts,
+        refreshAlerts: () => fetchAlerts(true),
     }
 }
