@@ -1,5 +1,6 @@
 // src/services/teamService.ts
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api';
 
 /** Generate a unique custom ID for a user (8-character alphanumeric + timestamp suffix) */
 export const generateCustomId = (): string => {
@@ -159,29 +160,20 @@ export const findTeamByOwnerCustomId = async (ownerCustomId: string): Promise<{ 
 };
 
 /** Join a team by the owner's custom ID */
-export const joinTeamByOwnerCustomId = async (ownerCustomId: string, currentUserId: string): Promise<{ success: boolean; error?: string; team_name?: string }> => {
+export const joinTeamByOwnerCustomId = async (ownerCustomId: string, _currentUserId: string): Promise<{ success: boolean; error?: string; team_name?: string; team_id?: string }> => {
     try {
-        const response = await fetch('/api/join-team', {
+        const data = await apiFetch<{ success: boolean; team_id: string; team_name: string; message: string }>('/teams/join', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({
-                owner_custom_id: ownerCustomId,
-                user_id: currentUserId
+                owner_custom_id: ownerCustomId
             })
         });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            return { success: false, error: data.error || 'Erro ao entrar no time.' };
-        }
-
-        return { success: true, team_name: data.team_name };
+        return { success: true, team_name: data.team_name, team_id: data.team_id };
     } catch (e: any) {
         console.error('[teamService] Error in joinTeamByOwnerCustomId:', e);
-        return { success: false, error: 'Erro de conexão ao tentar entrar no time.' };
+        // Extract error message if available
+        const errorMessage = e.message || 'Erro ao entrar no time.';
+        return { success: false, error: errorMessage };
     }
 };
 

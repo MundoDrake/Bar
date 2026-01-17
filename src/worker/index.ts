@@ -348,8 +348,24 @@ app.post('/api/teams/join', async (c) => {
 // --- PRODUCTS API ---
 
 // Helper function to get user's active team
-async function getUserTeamId(db: any, userId: string): Promise<string | null> {
-    // Get the first team the user is a member of (prioritize owned teams)
+// If requestedTeamId is provided, validates user is a member of that team
+async function getUserTeamId(db: any, userId: string, requestedTeamId?: string | null): Promise<string | null> {
+    // If a specific team was requested, validate membership
+    if (requestedTeamId) {
+        const membership = await db.prepare(`
+            SELECT tm.team_id
+            FROM team_members tm
+            WHERE tm.user_id = ? AND tm.team_id = ?
+        `).bind(userId, requestedTeamId).first() as any
+
+        if (membership) {
+            return membership.team_id
+        }
+        // If user is not a member of requested team, fall through to default logic
+        console.warn(`[Worker] User ${userId} requested team ${requestedTeamId} but is not a member`)
+    }
+
+    // Default: Get the first team the user is a member of (prioritize owned teams)
     const membership = await db.prepare(`
         SELECT tm.team_id, t.owner_user_id
         FROM team_members tm
@@ -365,9 +381,10 @@ async function getUserTeamId(db: any, userId: string): Promise<string | null> {
 app.get('/api/products', async (c) => {
     // @ts-ignore
     const user = c.get('user')
+    const requestedTeamId = c.req.header('X-Team-Id')
     try {
-        // Get user's team
-        const teamId = await getUserTeamId(c.env.DB, user.userId)
+        // Get user's team (respecting X-Team-Id header if provided)
+        const teamId = await getUserTeamId(c.env.DB, user.userId, requestedTeamId)
 
         if (!teamId) {
             // User has no team - return empty array
@@ -403,13 +420,14 @@ app.get('/api/products', async (c) => {
 app.post('/api/products', async (c) => {
     // @ts-ignore
     const user = c.get('user')
+    const requestedTeamId = c.req.header('X-Team-Id')
     const { name, category, unit, min_stock_level, expiry_tracking, notes } = await c.req.json()
     const productId = crypto.randomUUID()
     const stockId = crypto.randomUUID()
 
     try {
-        // Get user's team
-        const teamId = await getUserTeamId(c.env.DB, user.userId)
+        // Get user's team (respecting X-Team-Id header if provided)
+        const teamId = await getUserTeamId(c.env.DB, user.userId, requestedTeamId)
 
         if (!teamId) {
             return c.json({ error: 'You need to be part of a team to create products' }, 400)
@@ -437,12 +455,13 @@ app.post('/api/products', async (c) => {
 app.put('/api/products/:id', async (c) => {
     // @ts-ignore
     const user = c.get('user')
+    const requestedTeamId = c.req.header('X-Team-Id')
     const id = c.req.param('id')
     const data = await c.req.json()
 
     try {
-        // Get user's team
-        const teamId = await getUserTeamId(c.env.DB, user.userId)
+        // Get user's team (respecting X-Team-Id header if provided)
+        const teamId = await getUserTeamId(c.env.DB, user.userId, requestedTeamId)
         if (!teamId) return c.json({ error: 'Forbidden' }, 403)
 
         // Verify product belongs to user's team
@@ -473,11 +492,12 @@ app.put('/api/products/:id', async (c) => {
 app.delete('/api/products/:id', async (c) => {
     // @ts-ignore
     const user = c.get('user')
+    const requestedTeamId = c.req.header('X-Team-Id')
     const id = c.req.param('id')
 
     try {
-        // Get user's team
-        const teamId = await getUserTeamId(c.env.DB, user.userId)
+        // Get user's team (respecting X-Team-Id header if provided)
+        const teamId = await getUserTeamId(c.env.DB, user.userId, requestedTeamId)
         if (!teamId) return c.json({ error: 'Forbidden' }, 403)
 
         // Verify product belongs to user's team
@@ -498,12 +518,13 @@ app.delete('/api/products/:id', async (c) => {
 app.post('/api/stock/movement', async (c) => {
     // @ts-ignore
     const user = c.get('user')
+    const requestedTeamId = c.req.header('X-Team-Id')
     const { product_id, type, quantity, reason, notes } = await c.req.json()
     const movementId = crypto.randomUUID()
 
     try {
-        // Get user's team
-        const teamId = await getUserTeamId(c.env.DB, user.userId)
+        // Get user's team (respecting X-Team-Id header if provided)
+        const teamId = await getUserTeamId(c.env.DB, user.userId, requestedTeamId)
         if (!teamId) return c.json({ error: 'Forbidden' }, 403)
 
         // Verify product belongs to user's team
@@ -539,9 +560,10 @@ app.post('/api/stock/movement', async (c) => {
 app.get('/api/stock/movements', async (c) => {
     // @ts-ignore
     const user = c.get('user')
+    const requestedTeamId = c.req.header('X-Team-Id')
     try {
-        // Get user's team
-        const teamId = await getUserTeamId(c.env.DB, user.userId)
+        // Get user's team (respecting X-Team-Id header if provided)
+        const teamId = await getUserTeamId(c.env.DB, user.userId, requestedTeamId)
         if (!teamId) return c.json([])
 
         const results = await c.env.DB.prepare(`
@@ -568,9 +590,10 @@ app.get('/api/stock/movements', async (c) => {
 app.get('/api/stock/alerts', async (c) => {
     // @ts-ignore
     const user = c.get('user')
+    const requestedTeamId = c.req.header('X-Team-Id')
     try {
-        // Get user's team
-        const teamId = await getUserTeamId(c.env.DB, user.userId)
+        // Get user's team (respecting X-Team-Id header if provided)
+        const teamId = await getUserTeamId(c.env.DB, user.userId, requestedTeamId)
         if (!teamId) {
             return c.json({ lowStock: [], summary: { total_items: 0, low_stock_count: 0 } })
         }

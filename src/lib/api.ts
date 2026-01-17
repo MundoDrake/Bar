@@ -44,9 +44,31 @@ async function refreshSession(): Promise<string | null> {
     return refreshPromise;
 }
 
+// Key for storing active team in localStorage
+const ACTIVE_TEAM_KEY = 'active_team_id';
+
+/**
+ * Get the active team ID from localStorage
+ */
+export function getActiveTeamId(): string | null {
+    return localStorage.getItem(ACTIVE_TEAM_KEY);
+}
+
+/**
+ * Set the active team ID in localStorage
+ */
+export function setActiveTeamId(teamId: string | null): void {
+    if (teamId) {
+        localStorage.setItem(ACTIVE_TEAM_KEY, teamId);
+    } else {
+        localStorage.removeItem(ACTIVE_TEAM_KEY);
+    }
+}
+
 /**
  * Helper to make authenticated requests to our Cloudflare Worker API.
  * Automatically handles token refresh on 401 errors.
+ * Includes X-Team-Id header if an active team is set.
  */
 export async function apiFetch<T>(
     endpoint: string,
@@ -67,9 +89,13 @@ export async function apiFetch<T>(
         }
     }
 
+    // Include active team header if set
+    const activeTeamId = getActiveTeamId();
+
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        ...(activeTeamId ? { 'X-Team-Id': activeTeamId } : {}),
         ...(options.headers as Record<string, string> || {}),
     };
 

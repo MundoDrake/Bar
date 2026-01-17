@@ -149,6 +149,16 @@ export const useTeams = () => {
     // Check if current user is owner of any team
     const isOwner = teams.some(t => t.owner_user_id === user?.id);
 
+    // Expose count of teams owned by the current user for quotas and UX decisions
+    const ownedTeamsCount = ((): number => {
+        try {
+            // If teams array is available, count those where current user is the owner
+            return teams.filter(t => t.owner_user_id === user?.id).length;
+        } catch {
+            return 0;
+        }
+    })();
+
     return {
         teams,
         members,
@@ -156,6 +166,7 @@ export const useTeams = () => {
         refresh: fetch,
         currentMember,
         isOwner,
+        ownedTeamsCount,
         updateMemberPermissions
     };
 };
