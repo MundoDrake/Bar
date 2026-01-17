@@ -1,6 +1,5 @@
 // src/services/teamService.ts
 import { supabase } from '../lib/supabase';
-import { apiFetch } from '../lib/api';
 
 /** Generate a unique custom ID for a user (8-character alphanumeric + timestamp suffix) */
 export const generateCustomId = (): string => {
@@ -159,21 +158,73 @@ export const findTeamByOwnerCustomId = async (ownerCustomId: string): Promise<{ 
     return { teamId: team.id, teamName: team.name };
 };
 
-/** Join a team by the owner's custom ID */
-export const joinTeamByOwnerCustomId = async (ownerCustomId: string, _currentUserId: string): Promise<{ success: boolean; error?: string; team_name?: string; team_id?: string }> => {
+/** Join a team by the owner's custom ID - uses Supabase directly */
+export const joinTeamByOwnerCustomId = async (ownerCustomId: string, currentUserId: string): Promise<{ success: boolean; error?: string; team_name?: string; team_id?: string }> => {
     try {
-        const data = await apiFetch<{ success: boolean; team_id: string; team_name: string; message: string }>('/teams/join', {
-            method: 'POST',
-            body: JSON.stringify({
-                owner_custom_id: ownerCustomId
-            })
-        });
-        return { success: true, team_name: data.team_name, team_id: data.team_id };
+        // 1. Find owner by custom_id
+        const { data: ownerProfile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .eq('custom_id', ownerCustomId.toUpperCase())
+            .single();
+
+        if (profileError || !ownerProfile) {
+            return { success: false, error: 'Usuário não encontrado com este ID.' };
+        }
+
+        const ownerUserId = ownerProfile.user_id;
+
+        // Prevent joining own team
+        if (ownerUserId === currentUserId) {
+            return { success: false, error: 'Você não pode entrar no seu próprio time.' };
+        }
+
+        // 2. Find owner's team
+        const { data: team, error: teamError } = await supabase
+            .from('teams')
+            .select('id, name')
+            .eq('owner_user_id', ownerUserId)
+            .single();
+
+        if (teamError || !team) {
+            return { success: false, error: 'Este usuário não possui um time.' };
+        }
+
+        // 3. Check if already a member
+        const { data: existingMember } = await supabase
+            .from('team_members')
+            .select('id')
+            .eq('team_id', team.id)
+            .eq('user_id', currentUserId)
+            .single();
+
+        if (existingMember) {
+            return { success: false, error: 'Você já é membro deste time.' };
+        }
+
+        // 4. Add user as member
+        const { error: joinError } = await supabase
+            .from('team_members')
+            .insert({
+                team_id: team.id,
+                user_id: currentUserId,
+                role: 'member'
+            });
+
+        if (joinError) {
+            console.error('[teamService] Error joining team:', joinError);
+            if (joinError.code === '23505') {
+                return { success: false, error: 'Você já é membro deste time.' };
+            }
+            return { success: false, error: 'Erro ao entrar no time.' };
+        }
+
+        console.log('[teamService] Successfully joined team:', team.name);
+        return { success: true, team_id: team.id, team_name: team.name };
+
     } catch (e: any) {
         console.error('[teamService] Error in joinTeamByOwnerCustomId:', e);
-        // Extract error message if available
-        const errorMessage = e.message || 'Erro ao entrar no time.';
-        return { success: false, error: errorMessage };
+        return { success: false, error: 'Erro de conexão ao tentar entrar no time.' };
     }
 };
 
